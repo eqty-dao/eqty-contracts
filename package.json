@@ -1,0 +1,45 @@
+{
+  "name": "eqty-anchor-contract",
+  "version": "1.0.0",
+  "description": "Lightweight anchoring contract for EQTY protocol on Base",
+  "scripts": {
+    "test": "hardhat test",
+    "test:coverage": "SOLIDITY_COVERAGE=true hardhat coverage",
+    "test:gas": "REPORT_GAS=true hardhat test",
+    "compile": "hardhat compile",
+    "clean": "hardhat clean",
+    "node": "hardhat node",
+    "console": "hardhat console",
+    "deploy": "hardhat run scripts/deploy.ts",
+    "deploy:base": "hardhat run scripts/deploy.ts --network base",
+    "deploy:base-sepolia": "hardhat run scripts/deploy.ts --network base-sepolia",
+    "gas-analysis": "hardhat run scripts/gas-analysis.ts",
+    "verify": "hardhat verify",
+    "lint": "npx hardhat compile"
+  },
+  "keywords": [
+    "anchoring",
+    "base",
+    "eqty",
+    "blockchain"
+  ],
+  "license": "MIT",
+  "devDependencies": {
+    "@nomicfoundation/hardhat-ethers": "^3.1.0",
+    "@nomicfoundation/hardhat-toolbox-viem": "4.1.0",
+    "@nomicfoundation/hardhat-verify": "^2.1.0",
+    "@openzeppelin/contracts-upgradeable": "^5.4.0",
+    "@openzeppelin/hardhat-upgrades": "^3.9.1",
+    "@typechain/hardhat": "9.1.0",
+    "dotenv": "^17.2.1",
+    "ethers": "^6.15.0",
+    "hardhat": "^2.26.1",
+    "hardhat-abi-exporter": "^2.11.0",
+    "hardhat-ethers": "^1.0.1",
+    "solidity-coverage": "^0.8.16",
+    "typechain": "8.3.2"
+  },
+  "dependencies": {
+    "@openzeppelin/contracts": "^5.1.0"
+  }
+}
