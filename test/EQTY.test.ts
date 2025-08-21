@@ -53,7 +53,7 @@ describe("EQTY Token", function () {
         ]);
         expect.fail("Should have reverted");
       } catch (error: any) {
-        expect(error.message).to.include("Invalid bridge wallet");
+        expect(error.message).to.include("InvalidBridgeWallet");
       }
     });
 
@@ -68,7 +68,7 @@ describe("EQTY Token", function () {
         ]);
         expect.fail("Should have reverted");
       } catch (error: any) {
-        expect(error.message).to.include("Deadline must be in future");
+        expect(error.message).to.include("DeadlineMustBeInFuture");
       }
     });
   });

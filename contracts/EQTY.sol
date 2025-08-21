@@ -23,6 +23,8 @@ contract EQTY is ERC20Capped, ERC20Burnable {
 
     error MintingPeriodExpired();
     error NotBridgeWallet();
+    error InvalidBridgeWallet();
+    error DeadlineMustBeInFuture();
 
     event BridgeMint(address indexed to, uint256 amount);
 
@@ -38,8 +40,8 @@ contract EQTY is ERC20Capped, ERC20Burnable {
         ERC20("EQTY", "EQTY")
         ERC20Capped(TOTAL_SUPPLY) 
     {
-        require(_bridgeWallet != address(0), "Invalid bridge wallet");
-        require(_mintDeadline > block.timestamp, "Deadline must be in future");
+        if (_bridgeWallet == address(0)) revert InvalidBridgeWallet();
+        if (_mintDeadline <= block.timestamp) revert DeadlineMustBeInFuture();
         
         bridgeWallet = _bridgeWallet;
         mintDeadline = _mintDeadline;
