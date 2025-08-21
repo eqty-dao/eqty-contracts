@@ -4,10 +4,14 @@ import { parseEther } from "viem";
 
 describe("⛽ Anchor Batch Gas Costs", function () {
   async function deployFixture() {
-    const [owner] = await hre.viem.getWalletClients();
+    const [owner, bridgeWallet] = await hre.viem.getWalletClients();
     
     // Deploy EQTY token
-    const eqty = await hre.viem.deployContract("EQTY", [owner.account.address]);
+    const mintDeadline = BigInt(Math.floor(Date.now() / 1000)) + BigInt(30 * 24 * 60 * 60);
+    const eqty = await hre.viem.deployContract("EQTY", [
+      bridgeWallet.account.address,
+      mintDeadline
+    ]);
     
     // Deploy Anchor
     const anchorFee = parseEther("0.01"); // 0.01 EQTY per anchor
@@ -20,8 +24,10 @@ describe("⛽ Anchor Batch Gas Costs", function () {
     // Deploy batch test contract
     const batchTest = await hre.viem.deployContract("AnchorBatchTest", [anchor.address]);
     
-    // Mint tokens to batch test contract and approve
-    await eqty.write.mint([batchTest.address, parseEther("10000")]);
+    // Mint tokens to batch test contract and approve (using bridge wallet)
+    await eqty.write.mint([batchTest.address, parseEther("10000")], {
+      account: bridgeWallet.account
+    });
     
     // Approve the anchor contract to burn tokens from batch test contract
     // Note: This would need to be done from the batch test contract in a real scenario

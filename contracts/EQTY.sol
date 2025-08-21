@@ -3,38 +3,70 @@ pragma solidity ^0.8.28;
 
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/extensions/ERC20Burnable.sol";
-import "@openzeppelin/contracts/access/Ownable.sol";
+import "@openzeppelin/contracts/token/ERC20/extensions/ERC20Capped.sol";
 
 /**
  * @title EQTY
  * @notice The EQTY token used for anchoring fees on the EQTY protocol
- * @dev ERC20 token with burn functionality and minting controlled by owner
+ * @dev ERC20 token with burn functionality and minting controlled by bridge wallet
  * 
  * Key features:
  * - Burnable: Required for fee mechanism in Anchor contract
- * - Mintable: Only by owner (for initial distribution and migration)
+ * - Capped Supply: 500 million tokens maximum (using ERC20Capped)
+ * - Bridge Mintable: Only bridge wallet can mint until specified timestamp
  * - Standard ERC20: Compatible with all wallets and DEXs
  */
-contract EQTY is ERC20, ERC20Burnable, Ownable {
+contract EQTY is ERC20, ERC20Burnable, ERC20Capped {
+    uint256 private constant TOTAL_SUPPLY = 500_000_000 ether; // 500 million tokens
+    
+    address public immutable bridgeWallet;
+    uint256 public immutable mintDeadline;
+
+    error MintingPeriodExpired();
+    error NotBridgeWallet();
+
+    event BridgeMint(address indexed to, uint256 amount);
+
     /**
-     * @notice Constructor sets token name, symbol, and initial owner
-     * @param initialOwner Address that will own the contract and can mint tokens
+     * @notice Constructor sets token name, symbol, cap, bridge wallet, and minting deadline
+     * @param _bridgeWallet Address of the bridge wallet that can mint tokens
+     * @param _mintDeadline Timestamp after which minting is no longer allowed
      */
-    constructor(address initialOwner) 
-        ERC20("EQTY", "EQTY") 
-        Ownable(initialOwner) 
+    constructor(
+        address _bridgeWallet,
+        uint256 _mintDeadline
+    ) 
+        ERC20("EQTY", "EQTY")
+        ERC20Capped(TOTAL_SUPPLY) 
     {
-        // No initial supply - tokens must be minted
+        require(_bridgeWallet != address(0), "Invalid bridge wallet");
+        require(_mintDeadline > block.timestamp, "Deadline must be in future");
+        
+        bridgeWallet = _bridgeWallet;
+        mintDeadline = _mintDeadline;
     }
 
     /**
-     * @notice Mint new EQTY tokens
+     * @notice Mint new EQTY tokens (only callable by bridge wallet before deadline)
      * @param to Address to receive the minted tokens
      * @param amount Amount of tokens to mint (in wei)
-     * @dev Only callable by owner. Used for initial distribution and LTO migration
+     * @dev Only callable by bridge wallet before mintDeadline
+     * @dev The cap check is handled by ERC20Capped in _update
      */
-    function mint(address to, uint256 amount) external onlyOwner {
+    function mint(address to, uint256 amount) external {
+        if (msg.sender != bridgeWallet) revert NotBridgeWallet();
+        if (block.timestamp > mintDeadline) revert MintingPeriodExpired();
+        
         _mint(to, amount);
+        
+        emit BridgeMint(to, amount);
+    }
+    
+    /**
+     * @dev Required override for ERC20Capped compatibility
+     */
+    function _update(address from, address to, uint256 value) internal override(ERC20, ERC20Capped) {
+        super._update(from, to, value);
     }
 
     /**

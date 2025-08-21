@@ -4,14 +4,18 @@ import hre from "hardhat";
 import type { Address, Hash } from "viem";
 import { parseEventLogs, parseEther } from "viem";
 
-describe("EQTY Token", function () {
+describe("EQTY Token Basic", function () {
   async function deployEQTYFixture() {
-    const [owner, alice] = await hre.viem.getWalletClients();
-    const eqty = await hre.viem.deployContract("EQTY", [owner.account.address]);
-    return { eqty, owner, alice };
+    const [bridgeWallet, alice] = await hre.viem.getWalletClients();
+    const mintDeadline = BigInt(Math.floor(Date.now() / 1000)) + BigInt(30 * 24 * 60 * 60);
+    const eqty = await hre.viem.deployContract("EQTY", [
+      bridgeWallet.account.address,
+      mintDeadline
+    ]);
+    return { eqty, bridgeWallet, alice };
   }
 
-  it("Should not allow non-owner to mint tokens", async function () {
+  it("Should not allow non-bridge wallet to mint tokens", async function () {
     const { eqty, alice } = await loadFixture(deployEQTYFixture);
 
     try {
@@ -20,18 +24,22 @@ describe("EQTY Token", function () {
       });
       expect.fail("Should have reverted");
     } catch (error: any) {
-      expect(error.message).to.include("OwnableUnauthorizedAccount");
+      expect(error.message).to.include("NotBridgeWallet");
     }
   });
 });
 
 describe("Anchor", function () {
   async function deployAnchorFixture() {
-    const [owner, alice, bob] = await hre.viem.getWalletClients();
+    const [owner, bridgeWallet, alice, bob] = await hre.viem.getWalletClients();
     const publicClient = await hre.viem.getPublicClient();
 
-    // Deploy EQTY token
-    const eqty = await hre.viem.deployContract("EQTY", [owner.account.address]);
+    // Deploy EQTY token with bridge wallet
+    const mintDeadline = BigInt(Math.floor(Date.now() / 1000)) + BigInt(30 * 24 * 60 * 60);
+    const eqty = await hre.viem.deployContract("EQTY", [
+      bridgeWallet.account.address,
+      mintDeadline
+    ]);
     
     // Deploy Anchor
     const anchorFee = parseEther("0.1");
@@ -41,9 +49,13 @@ describe("Anchor", function () {
     await anchor.write.setEqtyToken([eqty.address], { account: owner.account });
     await anchor.write.setAnchorFee([anchorFee], { account: owner.account });
 
-    // Mint some EQTY to test users
-    await eqty.write.mint([alice.account.address, parseEther("1000")]);
-    await eqty.write.mint([bob.account.address, parseEther("1000")]);
+    // Mint some EQTY to test users (using bridge wallet)
+    await eqty.write.mint([alice.account.address, parseEther("1000")], {
+      account: bridgeWallet.account
+    });
+    await eqty.write.mint([bob.account.address, parseEther("1000")], {
+      account: bridgeWallet.account
+    });
 
     // Approve Anchor contract to burn tokens
     await eqty.write.approve([anchor.address, parseEther("1000")], { account: alice.account });

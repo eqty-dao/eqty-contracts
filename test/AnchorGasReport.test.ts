@@ -6,10 +6,14 @@ import { parseEther } from "viem";
 // Test specifically for gas reporter to show individual batch costs
 describe("Anchor Batch Costs", function () {
   async function deployFixture() {
-    const [owner, alice] = await hre.viem.getWalletClients();
+    const [owner, bridgeWallet, alice] = await hre.viem.getWalletClients();
     
     // Deploy EQTY token
-    const eqty = await hre.viem.deployContract("EQTY", [owner.account.address]);
+    const mintDeadline = BigInt(Math.floor(Date.now() / 1000)) + BigInt(30 * 24 * 60 * 60);
+    const eqty = await hre.viem.deployContract("EQTY", [
+      bridgeWallet.account.address,
+      mintDeadline
+    ]);
     
     // Deploy Anchor
     const anchorFee = parseEther("0.01"); // 0.01 EQTY per anchor
@@ -19,8 +23,10 @@ describe("Anchor Batch Costs", function () {
     await anchor.write.setEqtyToken([eqty.address], { account: owner.account });
     await anchor.write.setAnchorFee([anchorFee], { account: owner.account });
     
-    // Mint tokens and approve
-    await eqty.write.mint([alice.account.address, parseEther("10000")]);
+    // Mint tokens and approve (using bridge wallet)
+    await eqty.write.mint([alice.account.address, parseEther("10000")], {
+      account: bridgeWallet.account
+    });
     await eqty.write.approve([anchor.address, parseEther("10000")], { account: alice.account });
 
     return { anchor, eqty, alice };
@@ -72,10 +78,14 @@ describe("Anchor Batch Costs", function () {
 // Separate test for zero-fee gas measurements
 describe("Anchor Pure Gas (No Fee)", function () {
   async function deployFixture() {
-    const [owner, alice] = await hre.viem.getWalletClients();
+    const [owner, bridgeWallet, alice] = await hre.viem.getWalletClients();
     
     // Deploy EQTY token
-    const eqty = await hre.viem.deployContract("EQTY", [owner.account.address]);
+    const mintDeadline = BigInt(Math.floor(Date.now() / 1000)) + BigInt(30 * 24 * 60 * 60);
+    const eqty = await hre.viem.deployContract("EQTY", [
+      bridgeWallet.account.address,
+      mintDeadline
+    ]);
     
     // Deploy Anchor
     const anchor = await hre.viem.deployContract("Anchor", []);

@@ -25,9 +25,11 @@ The main anchoring contract that:
 
 ### EQTY.sol
 The ERC20 token used for fee payments:
-- Standard ERC20 with burn functionality
-- Mintable by owner only
-- Used as payment for anchoring operations
+- Standard ERC20 with burn functionality  
+- **Capped Supply**: Maximum 500 million EQTY tokens (using OpenZeppelin's ERC20Capped)
+- **Bridge Minting**: Only designated bridge wallet can mint
+- **Time-Limited Minting**: Minting restricted until specified deadline
+- **Burnable**: Tokens burned as payment for anchoring operations
 
 ### IAnchor.sol
 Interface defining the anchor structure and events.
@@ -50,9 +52,18 @@ npm install
 Create a `.env` file based on `.env.example`:
 
 ```bash
-PRIVATE_KEY=your_private_key
-BASE_RPC_URL=https://mainnet.base.org
+# Required for deployment
+PRIVATE_KEY=your_private_key_here
+
+# For EQTY token deployment
+BRIDGE_WALLET=0x... # Bridge wallet address that can mint EQTY
+MINT_DURATION_DAYS=90 # Optional, defaults to 90 days
+
+# RPC URLs (optional, defaults to public endpoints)
 BASE_SEPOLIA_RPC_URL=https://sepolia.base.org
+BASE_MAINNET_RPC_URL=https://mainnet.base.org
+
+# For contract verification
 BASESCAN_API_KEY=your_basescan_api_key
 ```
 
@@ -80,15 +91,31 @@ npm run test:gas
 
 ### Deploy Contracts
 
-The deployment script deploys only the Anchor contract with no EQTY token requirement and 0 fee.
+#### Deploy EQTY Token
 
-Deploy to Base Sepolia testnet:
+Deploy EQTY token with bridge minting capability:
+
 ```bash
-npm run deploy:base-sepolia
+# Deploy to Base Sepolia
+npx hardhat run scripts/deploy-eqty.ts --network base-sepolia
+
+# Deploy to Base mainnet
+npx hardhat run scripts/deploy-eqty.ts --network base
 ```
 
-Deploy to Base mainnet:
+Required environment variables:
+- `BRIDGE_WALLET` - Address that can mint EQTY tokens
+- `MINT_DURATION_DAYS` - How many days minting is allowed (optional, defaults to 90)
+
+#### Deploy Anchor Contract
+
+Deploy the Anchor contract (currently configured with no EQTY requirement and 0 fee):
+
 ```bash
+# Deploy to Base Sepolia
+npm run deploy:base-sepolia
+
+# Deploy to Base mainnet
 npm run deploy:base
 ```
 
