@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.28;
 
-import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/extensions/ERC20Burnable.sol";
 import "@openzeppelin/contracts/token/ERC20/extensions/ERC20Capped.sol";
 
@@ -16,7 +15,7 @@ import "@openzeppelin/contracts/token/ERC20/extensions/ERC20Capped.sol";
  * - Bridge Mintable: Only bridge wallet can mint until specified timestamp
  * - Standard ERC20: Compatible with all wallets and DEXs
  */
-contract EQTY is ERC20, ERC20Burnable, ERC20Capped {
+contract EQTY is ERC20Capped, ERC20Burnable {
     uint256 private constant TOTAL_SUPPLY = 500_000_000 ether; // 500 million tokens
     
     address public immutable bridgeWallet;
@@ -63,13 +62,6 @@ contract EQTY is ERC20, ERC20Burnable, ERC20Capped {
     }
     
     /**
-     * @dev Required override for ERC20Capped compatibility
-     */
-    function _update(address from, address to, uint256 value) internal override(ERC20, ERC20Capped) {
-        super._update(from, to, value);
-    }
-
-    /**
      * @notice Allows approved spenders to burn tokens on behalf of an account
      * @param account The account whose tokens will be burned
      * @param amount The amount of tokens to burn
@@ -78,5 +70,12 @@ contract EQTY is ERC20, ERC20Burnable, ERC20Capped {
     function burnFrom(address account, uint256 amount) public override {
         // This will check allowance and burn in one step
         super.burnFrom(account, amount);
+    }
+
+    /**
+     * @dev Required override due to multiple inheritance
+     */
+    function _update(address from, address to, uint256 value) internal override(ERC20, ERC20Capped) {
+        super._update(from, to, value);
     }
 }
