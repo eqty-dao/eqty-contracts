@@ -25,7 +25,7 @@ The main anchoring contract that:
 
 ### EQTY.sol
 The ERC20 token used for fee payments:
-- Standard ERC20 with burn functionality  
+- Standard ERC20 with burn functionality
 - **Capped Supply**: Maximum 500 million EQTY tokens (using OpenZeppelin's ERC20Capped)
 - **Bridge Minting**: Only designated bridge wallet can mint
 - **Time-Limited Minting**: Minting restricted until specified deadline
@@ -57,7 +57,7 @@ PRIVATE_KEY=your_private_key_here
 
 # For EQTY token deployment
 BRIDGE_WALLET=0x... # Bridge wallet address that can mint EQTY
-MINT_DURATION_DAYS=90 # Optional, defaults to 90 days
+MINT_DEADLINE=2025-10-01T00:00:00Z # Optional, defaults to 90 days from now
 
 # RPC URLs (optional, defaults to public endpoints)
 BASE_SEPOLIA_RPC_URL=https://sepolia.base.org
@@ -103,9 +103,9 @@ npx hardhat run scripts/deploy-eqty.ts --network base-sepolia
 npx hardhat run scripts/deploy-eqty.ts --network base
 ```
 
-Required environment variables:
+Environment variables:
 - `BRIDGE_WALLET` - Address that can mint EQTY tokens
-- `MINT_DURATION_DAYS` - How many days minting is allowed (optional, defaults to 90)
+- `MINT_DEADLINE` - ISO Date to when minting is allowed (optional, defaults to 90 days from now)
 
 #### Deploy Anchor Contract
 

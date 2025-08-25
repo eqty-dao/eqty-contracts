@@ -24,16 +24,17 @@ async function main() {
     throw new Error("BRIDGE_WALLET not found in environment variables");
   }
   
-  // Get mint deadline from environment (optional, defaults to 90 days)
-  const mintDurationDays = process.env.MINT_DURATION_DAYS ? parseInt(process.env.MINT_DURATION_DAYS) : 90;
-  const mintDeadline = Math.floor(Date.now() / 1000) + (mintDurationDays * 24 * 60 * 60);
+  // Get mint deadline from environment (optional, defaults to 90 days from now)
+  const mintDeadline = process.env.MINT_DEADLINE
+    ? Math.floor(new Date(process.env.MINT_DEADLINE).getTime() / 1000)
+    : Math.floor(Date.now() / 1000) + (90 * 24 * 60 * 60);
   
   // Create account from private key (add 0x prefix if not present)
   const formattedPrivateKey = privateKey.startsWith('0x') ? privateKey : `0x${privateKey}`;
   const account = privateKeyToAccount(formattedPrivateKey as `0x${string}`);
   console.log(`👤 Deployer: ${account.address}`);
   console.log(`🌉 Bridge Wallet: ${bridgeWallet}`);
-  console.log(`⏰ Mint Deadline: ${new Date(mintDeadline * 1000).toISOString()} (${mintDurationDays} days from now)`);
+  console.log(`⏰ Mint Deadline: ${new Date(mintDeadline * 1000).toISOString()}`);
   
   // Configure chain and RPC based on network
   let chain;
@@ -146,7 +147,7 @@ async function main() {
   console.log(`   - EQTY Token: ${receipt.contractAddress}`);
   console.log(`   - Bridge Wallet: ${bridgeWallet}`);
   console.log(`   - Cap: 500,000,000 EQTY`);
-  console.log(`   - Minting Period: ${mintDurationDays} days`);
+  console.log(`   - Minting Deadline: ${new Date(mintDeadline * 1000).toISOString()}`);
   
   const explorerUrl = network === "base-sepolia" 
     ? `https://sepolia.basescan.org/address/${receipt.contractAddress}`
