@@ -64,17 +64,6 @@ contract EQTY is ERC20Capped, ERC20Burnable {
     }
     
     /**
-     * @notice Allows approved spenders to burn tokens on behalf of an account
-     * @param account The account whose tokens will be burned
-     * @param amount The amount of tokens to burn
-     * @dev This is used by the Anchor contract to burn fees without requiring approve()
-     */
-    function burnFrom(address account, uint256 amount) public override {
-        // This will check allowance and burn in one step
-        super.burnFrom(account, amount);
-    }
-
-    /**
      * @dev Required override due to multiple inheritance
      */
     function _update(address from, address to, uint256 value) internal override(ERC20, ERC20Capped) {
