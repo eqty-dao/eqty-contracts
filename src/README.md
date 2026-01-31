@@ -27,9 +27,36 @@ redeemContract.redeem();
 | Function | Description | Default |
 |----------|-------------|---------|
 | `setRedeemAmount(uint128)` | EQTY required per redeem | 10,000 |
-| `setFoundationEthFee(uint16)` | ETH fee in bps | 0 |
-| `setFoundationEqtyFee(uint16)` | EQTY fee in bps | 0 |
+| `setFoundationEthFee(uint16)` | ETH fee in bps (0-10000) | 0 |
+| `setFoundationEqtyFee(uint16)` | EQTY fee in bps (0-10000) | 0 |
 | `setFoundationWallet(address)` | Fee recipient | Treasury |
+
+## Events
+
+| Event | Description |
+|-------|-------------|
+| `Redemption(user, eqtyBurned, ethReceived)` | Emitted on successful redeem |
+| `FoundationEthFeeUpdated(oldFee, newFee)` | ETH fee changed |
+| `FoundationEqtyFeeUpdated(oldFee, newFee)` | EQTY fee changed |
+| `RedeemAmountUpdated(oldAmount, newAmount)` | Redeem amount changed |
+| `FoundationWalletUpdated(oldWallet, newWallet)` | Wallet changed |
+| `FoundationEthWithdrawn(to, amount)` | ETH fees withdrawn |
+| `FoundationEqtyWithdrawn(to, amount)` | EQTY fees withdrawn |
+
+## Security
+
+- **ReentrancyGuard** - Prevents reentrancy attacks
+- **Ownable** - Access control for admin functions
+- **Custom Errors** - Gas-efficient error handling
+- **Storage Packing** - Optimized gas usage (uint128 + uint16)
+- **CEI Pattern** - Checks-Effects-Interactions ordering
+
+## Known Addresses (Base)
+
+| Item | Address |
+|------|---------|
+| EQTY Token | `0xC71F37D9bF4C5d1E7Fe4bCcB97e6f30B11b37D29` |
+| Treasury | `0x2Bc456799F3Cf071B10CE7216269471e0A40381a` |
 
 ## Testing (Foundry)
 
