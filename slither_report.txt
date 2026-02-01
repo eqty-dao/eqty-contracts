@@ -1,0 +1,126 @@
+﻿python : Cannot execute `forge`, is it in
+stalled and in PATH?
+At line:1 char:1
++ python -m slither src/ --solc-remaps "@
+openzeppelin/=node_modules/@op ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecifi 
+   ed: (Cannot execute ...ed and in PAT  
+  H?:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeComm 
+   andError
+ 
+'forge config --json' running
+Traceback (most recent call last):
+  File "<frozen runpy>", line 198, in _ru
+n_module_as_main
+  File "<frozen runpy>", line 88, in _run
+_code
+  File "C:\Users\jivee\AppData\Roaming\Py
+thon\Python313\site-packages\slither\__ma
+in__.py", line 972, in <module>
+    main()
+    ~~~~^^
+  File "C:\Users\jivee\AppData\Roaming\Py
+thon\Python313\site-packages\slither\__ma
+in__.py", line 760, in main
+    main_impl(all_detector_classes=detect
+ors, all_printer_classes=printers)
+    ~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\jivee\AppData\Roaming\Py
+thon\Python313\site-packages\slither\__ma
+in__.py", line 865, in main_impl
+    ) = process_all(filename, args, detec
+tor_classes, printer_classes)
+        ~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\jivee\AppData\Roaming\Py
+thon\Python313\site-packages\slither\__ma
+in__.py", line 95, in process_all
+    compilations = compile_all(target, **
+vars(args))
+  File "C:\Users\jivee\AppData\Roaming\Py
+thon\Python313\site-packages\crytic_compi
+le\crytic_compile.py", line 722, in compi
+le_all
+    compilations.append(CryticCompile(tar
+get, **kwargs))
+                        ~~~~~~~~~~~~~^^^^
+^^^^^^^^^^^^^^
+  File "C:\Users\jivee\AppData\Roaming\Py
+thon\Python313\site-packages\crytic_compi
+le\crytic_compile.py", line 211, in __ini
+t__
+    self._compile(**kwargs)
+    ~~~~~~~~~~~~~^^^^^^^^^^
+  File "C:\Users\jivee\AppData\Roaming\Py
+thon\Python313\site-packages\crytic_compi
+le\crytic_compile.py", line 633, in _comp
+ile
+    self._platform.compile(self, **kwargs
+)
+    ~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^
+^
+  File "C:\Users\jivee\AppData\Roaming\Py
+thon\Python313\site-packages\crytic_compi
+le\platform\foundry.py", line 77, in comp
+ile
+    foundry_config = self.config(self._pr
+oject_root)
+  File "C:\Users\jivee\AppData\Roaming\Py
+thon\Python313\site-packages\crytic_compi
+le\platform\foundry.py", line 182, in con
+fig
+    subprocess.run(
+    ~~~~~~~~~~~~~~^
+        ["forge", "config", "--json"], cw
+d=working_dir, stdout=subprocess.PIPE, ch
+eck=True
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+^^^^^^^^
+    ).stdout
+    ^
+  File "C:\Python313\Lib\subprocess.py", 
+line 554, in run
+    with Popen(*popenargs, **kwargs) as p
+rocess:
+         ~~~~~^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Python313\Lib\subprocess.py", 
+line 1039, in __init__
+    self._execute_child(args, executable,
+ preexec_fn, close_fds,
+    ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^
+^^^^^^^^^^^^^^^^^^^^^^^
+                        pass_fds, cwd, en
+v,
+                        ^^^^^^^^^^^^^^^^^
+^^
+    ...<5 lines>...
+                        gid, gids, uid, u
+mask,
+                        ^^^^^^^^^^^^^^^^^
+^^^^^
+                        start_new_session
+, process_group)
+                        ^^^^^^^^^^^^^^^^^
+^^^^^^^^^^^^^^^^
+  File "C:\Python313\Lib\subprocess.py", 
+line 1554, in _execute_child
+    hp, ht, pid, tid = _winapi.CreateProc
+ess(executable, args,
+                       ~~~~~~~~~~~~~~~~~~
+~~~^^^^^^^^^^^^^^^^^^
+                             # no special
+ security
+                             ^^^^^^^^^^^^
+^^^^^^^^^
+    ...<4 lines>...
+                             cwd,
+                             ^^^^
+                             startupinfo)
+                             ^^^^^^^^^^^^
+FileNotFoundError: [WinError 2] Systemet 
+finner ikke angitt fil

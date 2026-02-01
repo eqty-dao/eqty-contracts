@@ -1,0 +1,81 @@
+﻿No files changed, compilation skipped
+note[unaliased-plain-import]: use named imports '{A, B}' or alias 'import ".." as X'
+ --> src/Anchor.sol:4:8
+  |
+4 | import "./interfaces/IAnchor.sol";
+  |        ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  |
+  = help: https://book.getfoundry.sh/reference/forge/forge-lint#unaliased-plain-import
+
+note[unaliased-plain-import]: use named imports '{A, B}' or alias 'import ".." as X'
+ --> src/EQTY.sol:4:8
+  |
+4 | import "@openzeppelin/contracts/token/ERC20/extensions/ERC20Burnable.sol";
+  |        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  |
+  = help: https://book.getfoundry.sh/reference/forge/forge-lint#unaliased-plain-import
+
+note[unaliased-plain-import]: use named imports '{A, B}' or alias 'import ".." as X'
+ --> src/Anchor.sol:5:8
+  |
+5 | import "@openzeppelin/contracts/access/Ownable2Step.sol";
+  |        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  |
+  = help: https://book.getfoundry.sh/reference/forge/forge-lint#unaliased-plain-import
+
+note[unaliased-plain-import]: use named imports '{A, B}' or alias 'import ".." as X'
+ --> src/EQTY.sol:5:8
+  |
+5 | import "@openzeppelin/contracts/token/ERC20/extensions/ERC20Capped.sol";
+  |        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  |
+  = help: https://book.getfoundry.sh/reference/forge/forge-lint#unaliased-plain-import
+
+note[screaming-snake-case-immutable]: immutables should use SCREAMING_SNAKE_CASE
+  --> src/RedeemEQTY.sol:39:28
+   |
+39 |     IEQTY public immutable eqtyToken;
+   |                            ^^^^^^^^^ help: consider using: `EQTY_TOKEN`
+   |
+   = help: https://book.getfoundry.sh/reference/forge/forge-lint#screaming-snake-case-immutable
+
+note[screaming-snake-case-immutable]: immutables should use SCREAMING_SNAKE_CASE
+  --> src/EQTY.sol:21:30
+   |
+21 |     address public immutable bridgeWallet;
+   |                              ^^^^^^^^^^^^ help: consider using: `BRIDGE_WALLET`
+   |
+   = help: https://book.getfoundry.sh/reference/forge/forge-lint#screaming-snake-case-immutable
+
+note[unaliased-plain-import]: use named imports '{A, B}' or alias 'import ".." as X'
+ --> src/Anchor.sol:6:8
+  |
+6 | import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+  |        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  |
+  = help: https://book.getfoundry.sh/reference/forge/forge-lint#unaliased-plain-import
+
+note[mixed-case-function]: function names should use mixedCase
+   --> src/RedeemEQTY.sol:175:14
+    |
+175 |     function availableETH() external view returns (uint256) {
+    |              ^^^^^^^^^^^^ help: consider using: `availableEth`
+    |
+    = help: https://book.getfoundry.sh/reference/forge/forge-lint#mixed-case-function
+
+note[screaming-snake-case-immutable]: immutables should use SCREAMING_SNAKE_CASE
+  --> src/EQTY.sol:22:30
+   |
+22 |     uint256 public immutable mintDeadline;
+   |                              ^^^^^^^^^^^^ help: consider using: `MINT_DEADLINE`
+   |
+   = help: https://book.getfoundry.sh/reference/forge/forge-lint#screaming-snake-case-immutable
+
+warning[erc20-unchecked-transfer]: ERC20 'transfer' and 'transferFrom' calls should check the return value
+   --> src/RedeemEQTY.sol:161:13
+    |
+161 |             eqtyToken.transferFrom(msg.sender, address(this), eqtyFee);
+    |             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = help: https://book.getfoundry.sh/reference/forge/forge-lint#erc20-unchecked-transfer
+

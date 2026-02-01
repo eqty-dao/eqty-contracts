@@ -158,7 +158,7 @@ contract RedeemEQTY is Ownable2Step, ReentrancyGuard {
         
         // Transfer EQTY from user
         if (eqtyFee > 0) {
-            eqtyToken.transferFrom(msg.sender, address(this), eqtyFee);
+            IERC20(address(eqtyToken)).safeTransferFrom(msg.sender, address(this), eqtyFee);
         }
         eqtyToken.burnFrom(msg.sender, eqtyToBurn);
         
