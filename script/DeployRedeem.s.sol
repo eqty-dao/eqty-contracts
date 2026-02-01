@@ -53,5 +53,9 @@ contract DeployRedeemEQTY is Script {
         console2.log("  Initial ETH fee: 0%");
         console2.log("  Initial EQTY fee: 0%");
         console2.log("  Redeem amount: 10,000 EQTY");
+        console2.log("");
+        console2.log("  NOTE: Deployer is owner. To transfer ownership:");
+        console2.log("  1. Call transferOwnership(newOwner)");
+        console2.log("  2. New owner must call acceptOwnership()");
     }
 }

@@ -2,7 +2,8 @@
 pragma solidity ^0.8.28;
 
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
+import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import {Ownable2Step, Ownable} from "@openzeppelin/contracts/access/Ownable2Step.sol";
 import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 
 /**
@@ -25,7 +26,8 @@ interface IEQTY is IERC20 {
  * - EQTY is burned (deflationary) with optional foundation fee
  * - Optional foundation fees on both ETH and EQTY (default 0%)
  */
-contract RedeemEQTY is Ownable, ReentrancyGuard {
+contract RedeemEQTY is Ownable2Step, ReentrancyGuard {
+    using SafeERC20 for IERC20;
     // ============ Constants ============
     
     /// @notice Maximum foundation fee in basis points (100% = 10000 bps)
@@ -251,7 +253,7 @@ contract RedeemEQTY is Ownable, ReentrancyGuard {
         
         pendingFoundationEqty = 0;
         
-        eqtyToken.transfer(foundationWallet, amount);
+        IERC20(address(eqtyToken)).safeTransfer(foundationWallet, amount);
         
         emit FoundationEqtyWithdrawn(foundationWallet, amount);
     }

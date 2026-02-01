@@ -46,7 +46,8 @@ redeemContract.redeem();
 ## Security
 
 - **ReentrancyGuard** - Prevents reentrancy attacks
-- **Ownable** - Access control for admin functions
+- **Ownable2Step** - Two-step ownership transfer (must call `acceptOwnership()`)
+- **SafeERC20** - Safe token transfers with return value checking
 - **Custom Errors** - Gas-efficient error handling
 - **Storage Packing** - Optimized gas usage (uint128 + uint16)
 - **CEI Pattern** - Checks-Effects-Interactions ordering
@@ -77,5 +78,5 @@ forge script script/DeployRedeem.s.sol:DeployRedeemEQTY \
 
 ## Related
 
-- [EQTY.sol](../contracts/EQTY.sol) - Token contract
-- [Anchor.sol](../contracts/Anchor.sol) - Anchoring contract
+- [EQTY.sol](./EQTY.sol) - Token contract
+- [Anchor.sol](./Anchor.sol) - Anchoring contract
