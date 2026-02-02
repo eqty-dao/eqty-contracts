@@ -2,13 +2,79 @@
 
 Smart contracts for the EQTY protocol on Base.
 
+## Overview
+
+The EQTY protocol creates a **Real Yield Loop** where:
+
+1. **Builders/Services** pay fees via Anchor (ETH or EQTY)
+2. **ETH accumulates** in the RedeemEQTY contract
+3. **EQTY holders** can redeem tokens for ETH at a dynamic rate
+4. **EQTY is burned** → deflationary tokenomics
+
+This creates a self-sustaining ecosystem where EQTY value is backed by actual protocol revenue.
+
 ## Contracts
 
 | Contract | Description |
 |----------|-------------|
 | **EQTY.sol** | ERC20 token with 500M cap, bridge-controlled minting, and burn functionality |
-| **Anchor.sol** | Stateless anchoring contract for recording event chain hashes (burns EQTY as fee) |
-| **RedeemEQTY.sol** | Allows users to redeem EQTY tokens for ETH from protocol fees |
+| **Anchor.sol** | Stateless anchoring contract - accepts ETH or EQTY for fee payment |
+| **RedeemEQTY.sol** | Dynamic rate redemption of EQTY for ETH with anti-frontrunning protection |
+
+## Architecture
+
+```mermaid
+graph TB
+    subgraph "Fee Collection"
+        A[Builders/Ownables] -->|ETH| B[Anchor]
+        A -->|EQTY burn| D[🔥 Deflationary]
+    end
+    
+    subgraph "Value Distribution"
+        B -->|ETH forwarded| C[RedeemEQTY]
+        C -->|currentRate| B
+    end
+    
+    subgraph "Token Holders"
+        E[EQTY Holders] -->|10k EQTY| C
+        C -->|ETH at rate| E
+        E -->|EQTY burned| D
+    end
+    
+    style C fill:#f9f,stroke:#333
+    style D fill:#ff6,stroke:#333
+```
+
+## Payment Options (Anchor)
+
+| Method | What Happens |
+|--------|--------------|
+| **Pay with ETH** | ETH forwarded to Redeem contract → distributed to EQTY holders |
+| **Pay with EQTY** | EQTY burned directly (deflationary) |
+
+The ETH price is automatically derived from `RedeemEQTY.currentRate()`.
+
+## Dynamic Exchange Rate
+
+The exchange rate **self-adjusts** based on actual redemption activity:
+
+```
+r_next = r × clamp(p / r, 0.9, 1.1)
+```
+
+| Term | Meaning |
+|------|---------|
+| `r` | Current rate (ETH per 10k EQTY) |
+| `p` | Actual ETH paid out |
+| `0.9, 1.1` | Max ±10% change per transaction |
+
+**How it works:**
+
+- More ETH in contract than rate → Rate increases gradually
+- Less ETH in contract than rate → Rate decreases gradually
+- Rate naturally finds equilibrium based on protocol revenue
+
+**Initial rate** is set by owner at deployment, then the system self-adjusts.
 
 ## Quick Start
 
@@ -37,7 +103,7 @@ forge build
 ### Test
 
 ```bash
-# Run all tests
+# Run all tests (89 tests)
 forge test
 
 # Verbose output
@@ -58,23 +124,35 @@ forge test --match-path test/Anchor.t.sol
 cp .env.example .env
 ```
 
-1. Deploy to Base Sepolia:
+1. Deploy contracts in order:
 
 ```bash
-# Deploy EQTY token
+# 1. Deploy EQTY token (if not already deployed)
 forge script script/DeployEQTY.s.sol --rpc-url base-sepolia --broadcast --verify
 
-# Deploy Anchor
-forge script script/DeployAnchor.s.sol --rpc-url base-sepolia --broadcast --verify
-
-# Deploy RedeemEQTY
+# 2. Deploy RedeemEQTY (needs EQTY address)
 forge script script/DeployRedeem.s.sol --rpc-url base-sepolia --broadcast --verify
+
+# 3. Deploy Anchor (needs EQTY and Redeem addresses)
+forge script script/DeployAnchor.s.sol --rpc-url base-sepolia --broadcast --verify
 ```
 
-1. Deploy to Base Mainnet:
+1. Post-deployment configuration:
 
-```bash
-forge script script/DeployAnchor.s.sol --rpc-url base --broadcast --verify
+```solidity
+// Set initial exchange rate on Redeem contract
+// Calculate based on: (EQTY price in USD) × 10,000 / (ETH price in USD)
+redeemContract.setCurrentRate(0.012 ether); // Example: ~$30 worth at $2500 ETH
+
+// Configure Anchor to point to Redeem
+anchorContract.setRedeemContract(redeemAddress);
+anchorContract.setEqtyToken(eqtyAddress);
+anchorContract.setEqtyFee(100 ether); // 100 EQTY per anchor (DAO-configurable)
+
+// Transfer ownership to DAO multisig
+redeemContract.transferOwnership(daoMultisig);
+anchorContract.transferOwnership(daoMultisig);
+// New owner must call acceptOwnership()
 ```
 
 ## Project Structure
@@ -82,12 +160,14 @@ forge script script/DeployAnchor.s.sol --rpc-url base --broadcast --verify
 ```
 eqty-contracts/
 ├── src/                    # Contract source files
-│   ├── Anchor.sol
-│   ├── EQTY.sol
-│   ├── RedeemEQTY.sol
+│   ├── Anchor.sol          # Anchoring with ETH/EQTY payment
+│   ├── EQTY.sol            # ERC20 token
+│   ├── RedeemEQTY.sol      # Dynamic rate redemption
+│   ├── README.md           # Detailed RedeemEQTY docs
 │   └── interfaces/
-│       └── IAnchor.sol
-├── test/                   # Foundry tests (Solidity)
+│       ├── IAnchor.sol     # Anchor interface
+│       └── IRedeemEQTY.sol # Redeem interface
+├── test/                   # Foundry tests (89 tests)
 │   ├── Anchor.t.sol
 │   ├── EQTY.t.sol
 │   └── RedeemEQTY.t.sol
@@ -96,39 +176,94 @@ eqty-contracts/
 │   ├── DeployEQTY.s.sol
 │   └── DeployRedeem.s.sol
 ├── foundry.toml            # Foundry configuration
-└── package.json            # NPM dependencies (OpenZeppelin)
+└── package.json            # NPM dependencies
 ```
+
+## Deployed Addresses
+
+### Base Mainnet
+
+| Contract | Address |
+|----------|---------|
+| EQTY Token | `0xC71F37D9bF4C5d1E7Fe4bCcB97e6f30B11b37D29` |
+| Treasury | `0x2Bc456799F3Cf071B10CE7216269471e0A40381a` |
+| Anchor | *Pending deployment* |
+| RedeemEQTY | *Pending deployment* |
+
+### Base Sepolia (Testnet)
+
+| Contract | Address |
+|----------|---------|
+| Anchor | `0x7607af0cea78815c71bbea90110b2c218879354b` |
+
+## DAO Configuration
+
+All contracts use `Ownable2Step` for secure ownership transfer to DAO.
+
+| Contract | Parameter | Description | Default |
+|----------|-----------|-------------|---------|
+| **Anchor** | `eqtyFee` | EQTY amount burned per anchor | 0 |
+| **Anchor** | `redeemContract` | Address to receive ETH payments | - |
+| **Redeem** | `currentRate` | ETH per 10k EQTY | Must be set |
+| **Redeem** | `maxRateChangeBps` | Max rate change per redeem | 1000 (10%) |
+| **Redeem** | `minRate` / `maxRate` | Safety bounds | 0 / max |
+| **Redeem** | `foundationEthFeeBps` | Foundation ETH fee | 0 |
+| **Redeem** | `foundationEqtyFeeBps` | Foundation EQTY fee | 0 |
+| **Redeem** | `redeemAmount` | EQTY required per redeem | 10,000 |
+
+## Design Philosophy
+
+| Principle | Implementation |
+|-----------|----------------|
+| **Trustless** | No pause function, no admin backdoors |
+| **Self-Correcting** | Rate adjusts automatically based on activity |
+| **Deflationary** | EQTY burned on both Anchor and Redeem |
+| **Real Yield** | ETH comes from actual protocol usage |
+| **DAO-Governed** | Owners can be transferred to multisig/DAO |
 
 ## Environment Variables
 
-| Variable | Description |
-|----------|-------------|
-| `PRIVATE_KEY` | Deployer private key |
-| `BASE_MAINNET_RPC_URL` | Base mainnet RPC URL |
-| `BASE_SEPOLIA_RPC_URL` | Base Sepolia RPC URL |
-| `BASESCAN_API_KEY` | Basescan API key for verification |
-| `EQTY_TOKEN_ADDRESS` | EQTY token address (for Anchor deployment) |
-| `BRIDGE_WALLET` | Bridge wallet address (for EQTY deployment) |
-| `FOUNDATION_WALLET` | Foundation wallet (for RedeemEQTY deployment) |
+```bash
+# Required for deployment
+PRIVATE_KEY=            # Deployer private key
+BASE_MAINNET_RPC_URL=   # Base mainnet RPC
+BASE_SEPOLIA_RPC_URL=   # Base Sepolia RPC
+BASESCAN_API_KEY=       # For contract verification
+
+# Contract addresses (after deployment)
+EQTY_TOKEN_ADDRESS=
+REDEEM_CONTRACT_ADDRESS=
+
+# Configuration
+BRIDGE_WALLET=          # For EQTY minting
+FOUNDATION_WALLET=      # For fee collection
+INITIAL_RATE=           # Optional: Override default rate
+```
 
 ## Gas Optimization
 
 All contracts are optimized for gas efficiency on Base L2:
 
 - `via_ir` enabled for advanced optimizations
-- 200 optimizer runs (balanced for deployment + usage)
+- 200 optimizer runs
 - Minimal storage operations in Anchor (stateless design)
-- Packed storage in RedeemEQTY
+- Packed storage in RedeemEQTY (single slot for core config)
+- Custom errors instead of require strings
 
 ## Security
 
-| Contract | Features |
-|----------|----------|
-| **Anchor** | `Ownable2Step` (2-step ownership transfer) |
-| **EQTY** | Immutable bridge wallet, mint deadline |
-| **RedeemEQTY** | `Ownable2Step`, `ReentrancyGuard`, `SafeERC20` |
+| Contract | Security Features |
+|----------|-------------------|
+| **Anchor** | `Ownable2Step`, custom errors, max 100 anchors per tx |
+| **EQTY** | Immutable bridge wallet, time-limited minting, 500M cap |
+| **RedeemEQTY** | `Ownable2Step`, `ReentrancyGuard`, `SafeERC20`, slippage protection, rate bounds |
 
-**Note:** `Ownable2Step` requires new owner to call `acceptOwnership()` after transfer.
+### Trust Model
+
+- **No pause function** → Contracts cannot be stopped
+- **No admin mint** → Supply is capped
+- **Rate bounds** → Mathematical safety limits
+- **Two-step ownership** → Secure DAO transfer
 
 ## License
 

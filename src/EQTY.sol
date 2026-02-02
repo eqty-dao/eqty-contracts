@@ -8,7 +8,7 @@ import "@openzeppelin/contracts/token/ERC20/extensions/ERC20Capped.sol";
  * @title EQTY
  * @notice The EQTY token used for anchoring fees on the EQTY protocol
  * @dev ERC20 token with burn functionality and minting controlled by bridge wallet
- * 
+ *
  * Key features:
  * - Burnable: Required for fee mechanism in Anchor contract
  * - Capped Supply: 500 million tokens maximum (using ERC20Capped)
@@ -17,7 +17,7 @@ import "@openzeppelin/contracts/token/ERC20/extensions/ERC20Capped.sol";
  */
 contract EQTY is ERC20Capped, ERC20Burnable {
     uint256 private constant TOTAL_SUPPLY = 500_000_000 ether; // 500 million tokens
-    
+
     address public immutable bridgeWallet;
     uint256 public immutable mintDeadline;
 
@@ -33,16 +33,10 @@ contract EQTY is ERC20Capped, ERC20Burnable {
      * @param _bridgeWallet Address of the bridge wallet that can mint tokens
      * @param _mintDeadline Timestamp after which minting is no longer allowed
      */
-    constructor(
-        address _bridgeWallet,
-        uint256 _mintDeadline
-    ) 
-        ERC20("EQTY", "EQTY")
-        ERC20Capped(TOTAL_SUPPLY) 
-    {
+    constructor(address _bridgeWallet, uint256 _mintDeadline) ERC20("EQTY", "EQTY") ERC20Capped(TOTAL_SUPPLY) {
         if (_bridgeWallet == address(0)) revert InvalidBridgeWallet();
         if (_mintDeadline <= block.timestamp) revert DeadlineMustBeInFuture();
-        
+
         bridgeWallet = _bridgeWallet;
         mintDeadline = _mintDeadline;
     }
@@ -57,12 +51,12 @@ contract EQTY is ERC20Capped, ERC20Burnable {
     function mint(address to, uint256 amount) external {
         if (msg.sender != bridgeWallet) revert NotBridgeWallet();
         if (block.timestamp > mintDeadline) revert MintingPeriodExpired();
-        
+
         _mint(to, amount);
-        
+
         emit BridgeMint(to, amount);
     }
-    
+
     /**
      * @dev Required override due to multiple inheritance
      */

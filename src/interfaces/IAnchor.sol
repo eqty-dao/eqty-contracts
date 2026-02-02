@@ -24,17 +24,13 @@ interface IAnchor {
      * @param sender The address that submitted the anchor (indexed)
      * @param timestamp The block timestamp when anchored
      */
-    event Anchored(
-        bytes32 indexed key,
-        bytes32 value,
-        address indexed sender,
-        uint64 timestamp
-    );
+    event Anchored(bytes32 indexed key, bytes32 value, address indexed sender, uint64 timestamp);
 
     /**
      * @notice Submit one or more anchors to be recorded on-chain
      * @param anchors Array of Anchor structs to record
-     * @dev Emits an Anchored event for each anchor in the array
+     * @dev Emits an Anchored event for each anchor in the array.
+     *      Payment can be ETH (msg.value) or EQTY (burned from caller).
      */
-    function anchor(Anchor[] calldata anchors) external;
+    function anchor(Anchor[] calldata anchors) external payable;
 }
