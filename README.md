@@ -24,25 +24,14 @@ This creates a self-sustaining ecosystem where EQTY value is backed by actual pr
 ## Architecture
 
 ```mermaid
-graph TB
-    subgraph "Fee Collection"
-        A[Builders/Ownables] -->|ETH| B[Anchor]
-        A -->|EQTY burn| D[🔥 Deflationary]
-    end
-    
-    subgraph "Value Distribution"
-        B -->|ETH forwarded| C[RedeemEQTY]
-        C -->|currentRate| B
-    end
-    
-    subgraph "Token Holders"
-        E[EQTY Holders] -->|10k EQTY| C
-        C -->|ETH at rate| E
-        E -->|EQTY burned| D
-    end
-    
-    style C fill:#f9f,stroke:#333
-    style D fill:#ff6,stroke:#333
+graph LR
+    A[Builders] -->|ETH| B[Anchor]
+    A -->|EQTY| D[Burned]
+    B -->|ETH forwarded| C[RedeemEQTY]
+    C -->|rate| B
+    E[EQTY Holders] -->|10k EQTY| C
+    C -->|ETH| E
+    E -->|burned| D
 ```
 
 ## Payment Options (Anchor)
