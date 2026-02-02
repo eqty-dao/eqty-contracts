@@ -257,3 +257,13 @@ All contracts are optimized for gas efficiency on Base L2:
 ## License
 
 MIT
+## Security
+
+For security concerns, please contact: security@eqty.network
+=======
+MIT License - see LICENSE file for details
+
+## Security
+
+For security concerns, please contact: security@eqty.network
+>>>>>>> 4116215 (Update README.md)
