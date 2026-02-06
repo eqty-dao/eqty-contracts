@@ -243,7 +243,7 @@ All contracts are optimized for gas efficiency on Base L2:
 
 | Contract | Security Features |
 |----------|-------------------|
-| **Anchor** | `Ownable2Step`, custom errors, max 100 anchors per tx |
+| **Anchor** | `Ownable2Step`, custom errors, exact ETH payment validation, max 100 anchors per tx |
 | **EQTY** | Immutable bridge wallet, time-limited minting, 500M cap |
 | **RedeemEQTY** | `Ownable2Step`, `ReentrancyGuard`, `SafeERC20`, slippage protection, rate bounds |
 

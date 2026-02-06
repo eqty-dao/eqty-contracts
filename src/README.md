@@ -91,6 +91,8 @@ After deployment, the rate self-adjusts based on actual activity.
 | `setFoundationEthFee(uint16)` | ETH fee in bps | 0 |
 | `setFoundationEqtyFee(uint16)` | EQTY fee in bps | 0 |
 | `setFoundationWallet(address)` | Fee recipient | Treasury |
+| `withdrawFoundationEth()` | Withdraw accumulated ETH fees | - |
+| `withdrawFoundationEqty()` | Withdraw accumulated EQTY fees | - |
 
 ## Events
 

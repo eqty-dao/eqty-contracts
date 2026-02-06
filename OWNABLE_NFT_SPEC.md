@@ -1,7 +1,7 @@
 # Ownable NFT Contract Specification
 
-> **Status:** IMPLEMENTED  
-> **Author:** Jan-martin  
+> **Status:** SPECIFICATION (not yet deployed)
+> **Author:** Jan-martin
 > **Date:** 2026-02-04
 
 ## Overview
@@ -343,9 +343,9 @@ contract OwnableNFT is ERC721, ERC721URIStorage, ERC721Enumerable, IERC2981 {
 
 ## Implementation Status
 
-- [x] OwnableNFT.sol implemented
-- [x] 31 tests passing
-- [x] eqty-core OwnableClient created
-- [x] oBuilder EqtyService integration
+- [ ] OwnableNFT.sol contract (not yet in src/)
+- [ ] Tests
+- [ ] eqty-core OwnableClient
+- [ ] oBuilder EqtyService integration
 - [ ] Deploy to Base Sepolia
 - [ ] Security audit
