@@ -418,7 +418,7 @@ contract AnchorETHPaymentTest is Test {
         anchors[1] = IAnchor.Anchor({key: keccak256("key2"), value: keccak256("value2")});
 
         // Only pay for 1 anchor when submitting 2
-        vm.expectRevert(Anchor.InsufficientETH.selector);
+        vm.expectRevert(Anchor.IncorrectETH.selector);
         anchorContract.anchor{value: ETH_RATE}(anchors);
 
         vm.stopPrank();

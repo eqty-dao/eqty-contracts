@@ -395,8 +395,9 @@ contract RedeemEQTY is Ownable2Step, ReentrancyGuard {
 
     /**
      * @notice Withdraw accumulated foundation ETH fees
+     * @dev Only callable by owner to prevent unauthorized withdrawals
      */
-    function withdrawFoundationEth() external {
+    function withdrawFoundationEth() external onlyOwner {
         uint256 amount = pendingFoundationEth;
         if (amount == 0) revert NoFeesToWithdraw();
 
@@ -410,8 +411,9 @@ contract RedeemEQTY is Ownable2Step, ReentrancyGuard {
 
     /**
      * @notice Withdraw accumulated foundation EQTY fees
+     * @dev Only callable by owner to prevent unauthorized withdrawals
      */
-    function withdrawFoundationEqty() external {
+    function withdrawFoundationEqty() external onlyOwner {
         uint256 amount = pendingFoundationEqty;
         if (amount == 0) revert NoFeesToWithdraw();
 

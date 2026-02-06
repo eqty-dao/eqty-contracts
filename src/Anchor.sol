@@ -53,7 +53,7 @@ contract Anchor is IAnchor, Ownable2Step {
 
     // ============ Errors ============
 
-    error InsufficientETH();
+    error IncorrectETH();
     error InvalidAddress();
     error RedeemContractNotSet();
     error ETHTransferFailed();
@@ -142,13 +142,14 @@ contract Anchor is IAnchor, Ownable2Step {
         uint256 rate = redeemContract.currentRate();
         uint256 requiredEth = rate * anchorsLength;
 
-        if (msg.value < requiredEth) revert InsufficientETH();
+        // Require exact payment - use previewEthCost() to calculate
+        if (msg.value != requiredEth) revert IncorrectETH();
 
         // Forward ETH to Redeem contract
-        (bool success,) = address(redeemContract).call{value: msg.value}("");
+        (bool success,) = address(redeemContract).call{value: requiredEth}("");
         if (!success) revert ETHTransferFailed();
 
-        emit ETHForwarded(msg.sender, msg.value);
+        emit ETHForwarded(msg.sender, requiredEth);
     }
 
     // ============ Admin Functions ============
