@@ -14,10 +14,17 @@ interface IOwnable {
         string cid;                 // IPFS CID (private by default)
         address creator;            // Original minter
         uint96 royaltyBps;          // Royalty in basis points (100 = 1%)
-        bool isPublic;              // Issuer-controlled visibility
         bool isLocked;              // DeFi collateral lock
         address lockedBy;           // Protocol that locked the token
         uint64 createdAt;           // Mint timestamp
+    }
+
+    struct ChainEvent {
+        bytes32 previousHash;     // Hash of the previous event in the chain
+        bytes32 eventHash;        // keccak256(previousHash, key, value, timestamp)
+        string key;               // e.g., "metadata", "legal-contract", "transfer"
+        string value;             // e.g., "ipfs://...", "0xOld->0xNew"
+        uint64 timestamp;         // Block timestamp
     }
 
     // ============ Events ============
@@ -30,16 +37,16 @@ interface IOwnable {
         bool isPublic
     );
 
-    /// @notice Emitted when an anchor is added to an Ownable
-    event OwnableAnchored(
+    /// @notice Emitted when a new event is added to the chain
+    event OwnableEvent(
         uint256 indexed tokenId,
-        bytes32 indexed hash,
-        address indexed sender,
+        bytes32 indexed previousHash,
+        bytes32 indexed eventHash,
+        string key,
+        string value,
         uint64 timestamp
     );
 
-    /// @notice Emitted when visibility is changed
-    event VisibilityChanged(uint256 indexed tokenId, bool isPublic);
 
     /// @notice Emitted when an Ownable is locked
     event OwnableLocked(uint256 indexed tokenId, address indexed locker);
@@ -75,23 +82,17 @@ interface IOwnable {
     function mint(
         bytes32 contentHash,
         string calldata cid,
-        uint96 royaltyBps,
-        bool isPublic
+        uint96 royaltyBps
     ) external payable returns (uint256 tokenId);
 
     /**
-     * @notice Anchor hashes to an Ownable
-     * @param tokenId The token to anchor to
-     * @param hashes Array of hashes to anchor
+     * @notice Add a new event to the Ownable's event chain
+     * @param tokenId The token to add the event to
+     * @param key The event type or key
+     * @param value The event payload or value
      */
-    function anchor(uint256 tokenId, bytes32[] calldata hashes) external payable;
+    function addEvent(uint256 tokenId, string calldata key, string calldata value) external payable;
 
-    /**
-     * @notice Set the public visibility of an Ownable
-     * @param tokenId The token ID
-     * @param _isPublic New visibility setting
-     */
-    function setPublic(uint256 tokenId, bool _isPublic) external;
 
     /**
      * @notice Lock an Ownable for DeFi collateral
@@ -120,9 +121,9 @@ interface IOwnable {
     function getOwnable(uint256 tokenId) external view returns (OwnableData memory);
 
     /**
-     * @notice Get anchor history for an Ownable
+     * @notice Get event history for an Ownable
      * @param tokenId The token ID
-     * @return Array of anchored hashes
+     * @return Array of events
      */
-    function getAnchorHistory(uint256 tokenId) external view returns (bytes32[] memory);
+    function getEventHistory(uint256 tokenId) external view returns (ChainEvent[] memory);
 }

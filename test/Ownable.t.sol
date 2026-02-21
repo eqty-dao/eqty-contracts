@@ -41,143 +41,94 @@ contract OwnableNFTTest is Test {
 
     function test_Mint_Success() public {
         vm.prank(alice);
-        uint256 tokenId = ownable.mint{value: 0}(CONTENT_HASH, CID, 500, false);
+        uint256 tokenId = ownable.mint{value: 0}(CONTENT_HASH, CID, 500);
 
-        assertEq(tokenId, 1);
+        uint256 expectedTokenId = uint256(keccak256(abi.encodePacked(alice, CONTENT_HASH)));
+        assertEq(tokenId, expectedTokenId);
         assertEq(ownable.ownerOf(tokenId), alice);
         
         IOwnable.OwnableData memory data = ownable.getOwnable(tokenId);
         assertEq(data.contentHash, CONTENT_HASH);
         assertEq(data.creator, alice);
         assertEq(data.royaltyBps, 500);
-        assertEq(data.isPublic, false);
         assertEq(data.isLocked, false);
-    }
-
-    function test_Mint_WithPublic() public {
-        vm.prank(alice);
-        uint256 tokenId = ownable.mint{value: 0}(CONTENT_HASH, CID, 500, true);
-
-        IOwnable.OwnableData memory data = ownable.getOwnable(tokenId);
-        assertEq(data.isPublic, true);
     }
 
     function test_Mint_DuplicateContentHash_Reverts() public {
         vm.prank(alice);
-        ownable.mint{value: 0}(CONTENT_HASH, CID, 500, false);
+        ownable.mint{value: 0}(CONTENT_HASH, CID, 500);
 
         vm.prank(bob);
         vm.expectRevert(IOwnable.ContentHashAlreadyMinted.selector);
-        ownable.mint{value: 0}(CONTENT_HASH, "Other", 500, false);
+        ownable.mint{value: 0}(CONTENT_HASH, "Other", 500);
     }
 
     function test_Mint_InvalidRoyalty_Reverts() public {
         vm.prank(alice);
         vm.expectRevert(IOwnable.InvalidRoyalty.selector);
-        ownable.mint{value: 0}(CONTENT_HASH, CID, 1001, false); // > 10%
+        ownable.mint{value: 0}(CONTENT_HASH, CID, 1001); // > 10%
     }
 
-    // ============ Visibility Tests ============
-
-    function test_SetPublic_ByCreator() public {
+    function test_TokenURI() public {
         vm.prank(alice);
-        uint256 tokenId = ownable.mint{value: 0}(CONTENT_HASH, CID, 500, false);
-
-        assertEq(ownable.getOwnable(tokenId).isPublic, false);
-
-        vm.prank(alice);
-        ownable.setPublic(tokenId, true);
-
-        assertEq(ownable.getOwnable(tokenId).isPublic, true);
-    }
-
-    function test_SetPublic_NotCreator_Reverts() public {
-        vm.prank(alice);
-        uint256 tokenId = ownable.mint{value: 0}(CONTENT_HASH, CID, 500, false);
-
-        vm.prank(bob);
-        vm.expectRevert(IOwnable.NotCreator.selector);
-        ownable.setPublic(tokenId, true);
-    }
-
-    function test_TokenURI_Private() public {
-        vm.prank(alice);
-        uint256 tokenId = ownable.mint{value: 0}(CONTENT_HASH, CID, 500, false);
-
-        string memory uri = ownable.tokenURI(tokenId);
-        assertEq(uri, "ipfs://private");
-    }
-
-    function test_TokenURI_Public() public {
-        vm.prank(alice);
-        uint256 tokenId = ownable.mint{value: 0}(CONTENT_HASH, CID, 500, true);
+        uint256 tokenId = ownable.mint{value: 0}(CONTENT_HASH, CID, 500);
 
         string memory uri = ownable.tokenURI(tokenId);
         assertEq(uri, string(abi.encodePacked("ipfs://", CID)));
     }
 
-    // ============ Anchoring Tests ============
+    // ============ Event Chain Tests ============
 
-    function test_Anchor_ByOwner() public {
+    function test_AddEvent_ByOwner() public {
         vm.prank(alice);
-        uint256 tokenId = ownable.mint{value: 0}(CONTENT_HASH, CID, 500, false);
-
-        bytes32[] memory hashes = new bytes32[](2);
-        hashes[0] = keccak256("hash1");
-        hashes[1] = keccak256("hash2");
+        uint256 tokenId = ownable.mint{value: 0}(CONTENT_HASH, CID, 500);
 
         vm.prank(alice);
-        ownable.anchor(tokenId, hashes);
+        ownable.addEvent(tokenId, "metadata", "ipfs://new-uri");
 
-        bytes32[] memory history = ownable.getAnchorHistory(tokenId);
+        IOwnable.ChainEvent[] memory history = ownable.getEventHistory(tokenId);
+        
+        // init + metadata = 2 events
         assertEq(history.length, 2);
-        assertEq(history[0], hashes[0]);
-        assertEq(history[1], hashes[1]);
+        
+        assertEq(history[0].key, "init");
+        assertEq(history[0].value, string(abi.encodePacked("cid:", CID)));
+        assertEq(history[0].previousHash, bytes32(0)); // Genesis previous hash is 0
+        
+        assertEq(history[1].key, "metadata");
+        assertEq(history[1].value, "ipfs://new-uri");
+        assertEq(history[1].previousHash, history[0].eventHash); // Chain links correctly
     }
 
-    function test_Anchor_NotOwner_Reverts() public {
+    function test_AddEvent_NotOwner_Reverts() public {
         vm.prank(alice);
-        uint256 tokenId = ownable.mint{value: 0}(CONTENT_HASH, CID, 500, false);
-
-        bytes32[] memory hashes = new bytes32[](1);
-        hashes[0] = keccak256("hash1");
+        uint256 tokenId = ownable.mint{value: 0}(CONTENT_HASH, CID, 500);
 
         vm.prank(bob);
         vm.expectRevert(IOwnable.NotOwnerOrApproved.selector);
-        ownable.anchor(tokenId, hashes);
+        ownable.addEvent(tokenId, "metadata", "ipfs://new-uri");
     }
 
-    // ============ Verify Tests (from spec) ============
-
-    function test_Verify_ExistingHash() public {
+    function test_ImplicitTransferEvent() public {
         vm.prank(alice);
-        uint256 tokenId = ownable.mint{value: 0}(CONTENT_HASH, CID, 500, false);
-
-        bytes32[] memory hashes = new bytes32[](3);
-        hashes[0] = keccak256("hash1");
-        hashes[1] = keccak256("hash2");
-        hashes[2] = keccak256("hash3");
+        uint256 tokenId = ownable.mint{value: 0}(CONTENT_HASH, CID, 500);
 
         vm.prank(alice);
-        ownable.anchor(tokenId, hashes);
+        ownable.transferFrom(alice, bob, tokenId);
 
-        (bool exists, uint256 index) = ownable.verify(tokenId, keccak256("hash2"));
-        assertTrue(exists);
-        assertEq(index, 1);
-    }
-
-    function test_Verify_NonExistingHash() public {
-        vm.prank(alice);
-        uint256 tokenId = ownable.mint{value: 0}(CONTENT_HASH, CID, 500, false);
-
-        (bool exists, uint256 index) = ownable.verify(tokenId, keccak256("nonexistent"));
-        assertFalse(exists);
-        assertEq(index, 0);
+        IOwnable.ChainEvent[] memory history = ownable.getEventHistory(tokenId);
+        
+        // init + transfer = 2 events
+        assertEq(history.length, 2);
+        assertEq(history[1].key, "transfer");
+        
+        // The value should contain both addresses based on Strings.toHexString
+        assertEq(ownable.ownerOf(tokenId), bob);
     }
 
     function test_CreatorOf() public {
         vm.prank(alice);
-        uint256 tokenId = ownable.mint{value: 0}(CONTENT_HASH, CID, 500, false);
+        uint256 tokenId = ownable.mint{value: 0}(CONTENT_HASH, CID, 500);
 
         assertEq(ownable.creatorOf(tokenId), alice);
 
@@ -191,7 +142,7 @@ contract OwnableNFTTest is Test {
 
     function test_Lock_ByOwner() public {
         vm.prank(alice);
-        uint256 tokenId = ownable.mint{value: 0}(CONTENT_HASH, CID, 500, false);
+        uint256 tokenId = ownable.mint{value: 0}(CONTENT_HASH, CID, 500);
 
         assertEq(ownable.isLocked(tokenId), false);
 
@@ -203,7 +154,7 @@ contract OwnableNFTTest is Test {
 
     function test_Lock_Twice_Reverts() public {
         vm.prank(alice);
-        uint256 tokenId = ownable.mint{value: 0}(CONTENT_HASH, CID, 500, false);
+        uint256 tokenId = ownable.mint{value: 0}(CONTENT_HASH, CID, 500);
 
         vm.prank(alice);
         ownable.lock(tokenId);
@@ -215,7 +166,7 @@ contract OwnableNFTTest is Test {
 
     function test_Unlock_ByLocker() public {
         vm.prank(alice);
-        uint256 tokenId = ownable.mint{value: 0}(CONTENT_HASH, CID, 500, false);
+        uint256 tokenId = ownable.mint{value: 0}(CONTENT_HASH, CID, 500);
 
         vm.prank(alice);
         ownable.lock(tokenId);
@@ -228,7 +179,7 @@ contract OwnableNFTTest is Test {
 
     function test_Unlock_NotLocker_Reverts() public {
         vm.prank(alice);
-        uint256 tokenId = ownable.mint{value: 0}(CONTENT_HASH, CID, 500, false);
+        uint256 tokenId = ownable.mint{value: 0}(CONTENT_HASH, CID, 500);
 
         vm.prank(alice);
         ownable.lock(tokenId);
@@ -240,7 +191,7 @@ contract OwnableNFTTest is Test {
 
     function test_Transfer_Locked_Reverts() public {
         vm.prank(alice);
-        uint256 tokenId = ownable.mint{value: 0}(CONTENT_HASH, CID, 500, false);
+        uint256 tokenId = ownable.mint{value: 0}(CONTENT_HASH, CID, 500);
 
         vm.prank(alice);
         ownable.lock(tokenId);
@@ -252,7 +203,7 @@ contract OwnableNFTTest is Test {
 
     function test_Transfer_Unlocked_Success() public {
         vm.prank(alice);
-        uint256 tokenId = ownable.mint{value: 0}(CONTENT_HASH, CID, 500, false);
+        uint256 tokenId = ownable.mint{value: 0}(CONTENT_HASH, CID, 500);
 
         vm.prank(alice);
         ownable.transferFrom(alice, bob, tokenId);
@@ -264,7 +215,7 @@ contract OwnableNFTTest is Test {
 
     function test_RoyaltyInfo() public {
         vm.prank(alice);
-        uint256 tokenId = ownable.mint{value: 0}(CONTENT_HASH, CID, 500, false);
+        uint256 tokenId = ownable.mint{value: 0}(CONTENT_HASH, CID, 500);
 
         (address receiver, uint256 royalty) = ownable.royaltyInfo(tokenId, 1 ether);
 
@@ -274,7 +225,7 @@ contract OwnableNFTTest is Test {
 
     function test_SetRoyalty_ByCreator() public {
         vm.prank(alice);
-        uint256 tokenId = ownable.mint{value: 0}(CONTENT_HASH, CID, 500, false);
+        uint256 tokenId = ownable.mint{value: 0}(CONTENT_HASH, CID, 500);
 
         vm.prank(alice);
         ownable.setRoyalty(tokenId, 300);
@@ -285,7 +236,7 @@ contract OwnableNFTTest is Test {
 
     function test_SetRoyalty_NotCreator_Reverts() public {
         vm.prank(alice);
-        uint256 tokenId = ownable.mint{value: 0}(CONTENT_HASH, CID, 500, false);
+        uint256 tokenId = ownable.mint{value: 0}(CONTENT_HASH, CID, 500);
 
         vm.prank(bob);
         vm.expectRevert(IOwnable.NotCreator.selector);
@@ -308,7 +259,7 @@ contract OwnableNFTTest is Test {
         ownable.setBaseURI("https://api.eqty.network/");
         
         vm.prank(alice);
-        uint256 tokenId = ownable.mint{value: 0}(CONTENT_HASH, CID, 500, true);
+        uint256 tokenId = ownable.mint{value: 0}(CONTENT_HASH, CID, 500);
 
         string memory uri = ownable.tokenURI(tokenId);
         assertEq(uri, string(abi.encodePacked("https://api.eqty.network/", CID)));
@@ -332,21 +283,18 @@ contract OwnableNFTTest is Test {
 
         vm.prank(alice);
         vm.expectRevert();
-        ownable.mint{value: 0}(CONTENT_HASH, CID, 500, false);
+        ownable.mint{value: 0}(CONTENT_HASH, CID, 500);
     }
 
-    function test_Anchor_WhenPaused_Reverts() public {
+    function test_AddEvent_WhenPaused_Reverts() public {
         vm.prank(alice);
-        uint256 tokenId = ownable.mint{value: 0}(CONTENT_HASH, CID, 500, false);
+        uint256 tokenId = ownable.mint{value: 0}(CONTENT_HASH, CID, 500);
 
         ownable.pause();
 
-        bytes32[] memory hashes = new bytes32[](1);
-        hashes[0] = keccak256("hash1");
-
         vm.prank(alice);
         vm.expectRevert();
-        ownable.anchor(tokenId, hashes);
+        ownable.addEvent(tokenId, "k", "v");
     }
 
     function test_Unpause() public {
@@ -358,15 +306,16 @@ contract OwnableNFTTest is Test {
 
         // Should work after unpause
         vm.prank(alice);
-        uint256 tokenId = ownable.mint{value: 0}(CONTENT_HASH, CID, 500, false);
-        assertEq(tokenId, 1);
+        uint256 tokenId = ownable.mint{value: 0}(CONTENT_HASH, CID, 500);
+        uint256 expectedTokenId = uint256(keccak256(abi.encodePacked(alice, CONTENT_HASH)));
+        assertEq(tokenId, expectedTokenId);
     }
 
     function test_SetPrivateURI() public {
         ownable.setPrivateURI("ipfs://hidden");
 
         vm.prank(alice);
-        uint256 tokenId = ownable.mint{value: 0}(CONTENT_HASH, CID, 500, false);
+        uint256 tokenId = ownable.mint{value: 0}(CONTENT_HASH, CID, 500);
 
         string memory uri = ownable.tokenURI(tokenId);
         assertEq(uri, "ipfs://hidden");

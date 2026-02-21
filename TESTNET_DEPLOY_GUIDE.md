@@ -1,6 +1,16 @@
-# EQTY Testnet Deploy Guide (Base Sepolia)
+# EQTY Testnet Deployment Guide (Base Sepolia)
 
-Denne guiden tar deg gjennom full deploy av EQTY-stacken på Base Sepolia testnet.
+**Status:** ✅ Deployed on 2026-02-06
+
+## Deployed Addresses (2026-02-06)
+
+| Contract | Address |
+|----------|---------|
+| **EQTY Token** | `0x92c9d244da5aA178240F3Aab9D931Aaf00dFE492` |
+| **RedeemEQTY** | `0xaa1a97b0e1718511dde32afdb7a84a5241d42e9b` |
+| **Anchor** | `0xB03e8E6F74145FC26013491066716cBf7C556495` |
+| **OwnableNFT** | `0x198d5c7373E78E7c25384920D7CE448a267C2227` |
+| **Bridge Wallet** | `0x1E2DAD5ba3A0C286A01f5dA4D30f17223D37A2Bd` |
 
 ## Forutsetninger
 
@@ -37,6 +47,7 @@ cp .env.example .env
 ```
 
 Rediger `.env`:
+
 ```bash
 # Din deploy-wallet (uten 0x-prefix)
 PRIVATE_KEY=abc123...

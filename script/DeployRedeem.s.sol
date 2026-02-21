@@ -19,8 +19,8 @@ contract DeployRedeemEQTY is Script {
     // Base Mainnet EQTY Token (already deployed)
     address constant EQTY_TOKEN_MAINNET = 0xC71F37D9bF4C5d1E7Fe4bCcB97e6f30B11b37D29;
 
-    // Base Sepolia EQTY Token (TODO: Deploy test token or use existing)
-    address constant EQTY_TOKEN_TESTNET = address(0); // <-- FILL IN
+    // Base Sepolia EQTY Token (from env)
+    address constant EQTY_TOKEN_TESTNET = address(0);
 
     // Foundation wallet (receives fees)
     address constant FOUNDATION_WALLET = 0x2Bc456799F3Cf071B10CE7216269471e0A40381a;
@@ -33,12 +33,13 @@ contract DeployRedeemEQTY is Script {
 
         // Allow rate override from environment
         uint256 initialRate = vm.envOr("INITIAL_RATE", INITIAL_RATE);
+        address envEqtyToken = vm.envOr("EQTY_TOKEN_ADDRESS", address(0));
 
         // Determine network
         bool isMainnet = block.chainid == 8453;
-        address eqtyToken = isMainnet ? EQTY_TOKEN_MAINNET : EQTY_TOKEN_TESTNET;
+        address eqtyToken = isMainnet ? EQTY_TOKEN_MAINNET : envEqtyToken;
 
-        require(eqtyToken != address(0), "EQTY token address not set");
+        require(eqtyToken != address(0), "EQTY token address not set (use EQTY_TOKEN_ADDRESS)");
 
         console2.log("Deploying RedeemEQTY...");
         console2.log("  Network:", isMainnet ? "Base Mainnet" : "Base Sepolia");
@@ -66,8 +67,8 @@ contract DeployRedeemEQTY is Script {
         console2.log("  Redeem amount: 10,000 EQTY");
         console2.log("  Max rate change: 10% per redeem");
         console2.log("");
-        console2.log("  IMPORTANT: Update Anchor contract with:");
-        console2.log("  anchor.setRedeemContract(", address(redeemContract), ")");
+        console2.log("  IMPORTANT: Update OwnableNFT contract with:");
+        console2.log("  ownable.setRedeemContract(", address(redeemContract), ")");
         console2.log("");
         console2.log("  To transfer ownership to DAO:");
         console2.log("  1. Call transferOwnership(newOwner)");

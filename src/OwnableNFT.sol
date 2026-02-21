@@ -7,6 +7,7 @@ import "@openzeppelin/contracts/interfaces/IERC2981.sol";
 import "@openzeppelin/contracts/access/Ownable2Step.sol";
 import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import "@openzeppelin/contracts/utils/Pausable.sol";
+import "@openzeppelin/contracts/utils/Strings.sol";
 import "./interfaces/IOwnable.sol";
 import "./interfaces/IRedeemEQTY.sol";
 
@@ -34,9 +35,6 @@ import "./interfaces/IRedeemEQTY.sol";
 contract OwnableNFT is ERC721Enumerable, IERC2981, IOwnable, Ownable2Step, ReentrancyGuard, Pausable {
     // ============ State ============
 
-    /// @notice Counter for token IDs
-    uint256 private _tokenIdCounter;
-
     /// @notice Redeem contract for ETH payments
     IRedeemEQTY public redeemContract;
 
@@ -46,14 +44,14 @@ contract OwnableNFT is ERC721Enumerable, IERC2981, IOwnable, Ownable2Step, Reent
     /// @notice Base URI for metadata
     string private _baseTokenURI;
 
-    /// @notice Private placeholder URI for non-public tokens
-    string public privateURI = "ipfs://private";
-
     /// @notice Ownable data for each token
     mapping(uint256 => OwnableData) private _ownables;
 
-    /// @notice Anchor history for each token
-    mapping(uint256 => bytes32[]) private _anchorHistory;
+    /// @notice Rolling state hash (Unified Chain root) for each token
+    mapping(uint256 => bytes32) public state;
+
+    /// @notice Full event history for each token
+    mapping(uint256 => ChainEvent[]) private _eventHistory;
 
     /// @notice Mapping from content hash to token ID (prevents duplicates)
     mapping(bytes32 => uint256) public contentHashToTokenId;
@@ -86,8 +84,7 @@ contract OwnableNFT is ERC721Enumerable, IERC2981, IOwnable, Ownable2Step, Reent
     function mint(
         bytes32 contentHash,
         string calldata cid,  // Can be encrypted off-chain for enterprise privacy
-        uint96 royaltyBps,
-        bool isPublic
+        uint96 royaltyBps
     ) external payable nonReentrant whenNotPaused returns (uint256 tokenId) {
         // Validate inputs
         if (contentHashToTokenId[contentHash] != 0) revert ContentHashAlreadyMinted();
@@ -96,9 +93,9 @@ contract OwnableNFT is ERC721Enumerable, IERC2981, IOwnable, Ownable2Step, Reent
         // Handle payment
         _handleMintPayment();
 
-        // Increment and get token ID
-        _tokenIdCounter++;
-        tokenId = _tokenIdCounter;
+        // Deterministic token ID
+        tokenId = uint256(keccak256(abi.encodePacked(msg.sender, contentHash)));
+        if (_ownerOf(tokenId) != address(0)) revert("Token already minted");
 
         // Store ownable data
         _ownables[tokenId] = OwnableData({
@@ -106,7 +103,6 @@ contract OwnableNFT is ERC721Enumerable, IERC2981, IOwnable, Ownable2Step, Reent
             cid: cid,
             creator: msg.sender,
             royaltyBps: royaltyBps,
-            isPublic: isPublic,
             isLocked: false,
             lockedBy: address(0),
             createdAt: uint64(block.timestamp)
@@ -115,43 +111,34 @@ contract OwnableNFT is ERC721Enumerable, IERC2981, IOwnable, Ownable2Step, Reent
         // Map content hash to token ID
         contentHashToTokenId[contentHash] = tokenId;
 
-        // Mint the token
+        // Mint the token (This triggers the _update hook)
         _safeMint(msg.sender, tokenId);
 
-        emit OwnableMinted(tokenId, msg.sender, contentHash, isPublic);
+        // Inject first initialization event
+        _addInternalEvent(tokenId, "init", string(abi.encodePacked("cid:", cid)));
+
+        emit OwnableMinted(tokenId, msg.sender, contentHash, true);
     }
 
     /**
      * @inheritdoc IOwnable
      */
-    function anchor(uint256 tokenId, bytes32[] calldata hashes) external payable nonReentrant whenNotPaused {
+    function addEvent(
+        uint256 tokenId, 
+        string calldata key, 
+        string calldata value
+    ) external payable nonReentrant whenNotPaused {
         _requireOwned(tokenId);
+        // Only owner or approved can add explicit events
         if (!_isAuthorized(ownerOf(tokenId), msg.sender, tokenId)) revert NotOwnerOrApproved();
-        if (hashes.length > MAX_ANCHORS_PER_TX) revert("Too many anchors");
 
         // Handle payment for anchoring
-        _handleAnchorPayment(hashes.length);
+        _handleAnchorPayment(1);
 
-        // Store anchors and emit events
-        uint64 timestamp = uint64(block.timestamp);
-        for (uint256 i = 0; i < hashes.length;) {
-            _anchorHistory[tokenId].push(hashes[i]);
-            emit OwnableAnchored(tokenId, hashes[i], msg.sender, timestamp);
-            unchecked { ++i; }
-        }
+        _addInternalEvent(tokenId, key, value);
     }
 
-    /**
-     * @inheritdoc IOwnable
-     */
-    function setPublic(uint256 tokenId, bool _isPublic) external {
-        OwnableData storage data = _ownables[tokenId];
-        // Only creator can change visibility
-        if (data.creator != msg.sender) revert NotCreator();
 
-        data.isPublic = _isPublic;
-        emit VisibilityChanged(tokenId, _isPublic);
-    }
 
     /**
      * @notice Update royalty for a token (only creator)
@@ -222,41 +209,8 @@ contract OwnableNFT is ERC721Enumerable, IERC2981, IOwnable, Ownable2Step, Reent
     /**
      * @inheritdoc IOwnable
      */
-    function getAnchorHistory(uint256 tokenId) external view returns (bytes32[] memory) {
-        return _anchorHistory[tokenId];
-    }
-
-    /**
-     * @notice Get the CID only if caller is owner or token is public
-     * @param tokenId The token ID
-     * @return The CID or empty string
-     */
-    function getCid(uint256 tokenId) external view returns (string memory) {
-        OwnableData storage data = _ownables[tokenId];
-        if (data.isPublic || ownerOf(tokenId) == msg.sender) {
-            return data.cid;
-        }
-        return "";
-    }
-
-    /**
-     * @notice Verify a hash exists in the anchor history
-     * @param tokenId The Ownable to check
-     * @param hash The hash to search for
-     * @return exists True if the hash is found
-     * @return index The index of the hash in history (0 if not found)
-     */
-    function verify(uint256 tokenId, bytes32 hash) 
-        external view returns (bool exists, uint256 index) 
-    {
-        bytes32[] storage history = _anchorHistory[tokenId];
-        for (uint256 i = 0; i < history.length;) {
-            if (history[i] == hash) {
-                return (true, i);
-            }
-            unchecked { ++i; }
-        }
-        return (false, 0);
+    function getEventHistory(uint256 tokenId) external view returns (ChainEvent[] memory) {
+        return _eventHistory[tokenId];
     }
 
     /**
@@ -270,15 +224,10 @@ contract OwnableNFT is ERC721Enumerable, IERC2981, IOwnable, Ownable2Step, Reent
 
     /**
      * @notice Returns the URI for a token
-     * @dev Returns private placeholder if token is not public
      */
     function tokenURI(uint256 tokenId) public view override returns (string memory) {
         _requireOwned(tokenId);
         OwnableData storage data = _ownables[tokenId];
-
-        if (!data.isPublic) {
-            return privateURI;
-        }
 
         return string(abi.encodePacked(_baseTokenURI, data.cid));
     }
@@ -352,7 +301,31 @@ contract OwnableNFT is ERC721Enumerable, IERC2981, IOwnable, Ownable2Step, Reent
     }
 
     /**
-     * @dev Override to prevent transfers of locked tokens
+     * @notice Internal method to construct and inject a new ChainEvent
+     */
+    function _addInternalEvent(uint256 tokenId, string memory key, string memory value) internal {
+        uint64 timestamp = uint64(block.timestamp);
+        bytes32 prevHash = state[tokenId];
+        
+        // Calculate new hash: keccak256(previousHash, key, value, timestamp)
+        bytes32 newHash = keccak256(abi.encodePacked(prevHash, key, value, timestamp));
+
+        ChainEvent memory newEvent = ChainEvent({
+            previousHash: prevHash,
+            eventHash: newHash,
+            key: key,
+            value: value,
+            timestamp: timestamp
+        });
+
+        _eventHistory[tokenId].push(newEvent);
+        state[tokenId] = newHash;
+
+        emit OwnableEvent(tokenId, prevHash, newHash, key, value, timestamp);
+    }
+
+    /**
+     * @dev Override to prevent transfers of locked tokens and inject transfer event
      */
     function _update(address to, uint256 tokenId, address auth)
         internal
@@ -360,10 +333,24 @@ contract OwnableNFT is ERC721Enumerable, IERC2981, IOwnable, Ownable2Step, Reent
         returns (address)
     {
         // Check if token is locked (skip for minting when from is 0)
-        if (_ownerOf(tokenId) != address(0) && _ownables[tokenId].isLocked) {
+        address from = _ownerOf(tokenId);
+        if (from != address(0) && _ownables[tokenId].isLocked) {
             revert TokenLocked();
         }
-        return super._update(to, tokenId, auth);
+        
+        address result = super._update(to, tokenId, auth);
+        
+        // Inject transfer event into the chain (unless it's minting/burning)
+        if (from != address(0) && to != address(0)) {
+            string memory val = string(abi.encodePacked(
+                Strings.toHexString(uint160(from), 20),
+                "->",
+                Strings.toHexString(uint160(to), 20)
+            ));
+            _addInternalEvent(tokenId, "transfer", val);
+        }
+
+        return result;
     }
 
     // ============ Admin Functions ============
@@ -392,13 +379,7 @@ contract OwnableNFT is ERC721Enumerable, IERC2981, IOwnable, Ownable2Step, Reent
         _baseTokenURI = baseURI_;
     }
 
-    /**
-     * @notice Set the private placeholder URI
-     * @param _privateURI New private URI
-     */
-    function setPrivateURI(string calldata _privateURI) external onlyOwner {
-        privateURI = _privateURI;
-    }
+
 
     // ============ Emergency Controls ============
 
