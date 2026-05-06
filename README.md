@@ -21,6 +21,29 @@ This creates a self-sustaining ecosystem where EQTY value is backed by actual pr
 | **Anchor.sol** | Stateless anchoring contract - accepts ETH or EQTY for fee payment |
 | **RedeemEQTY.sol** | Dynamic rate redemption of EQTY for ETH with anti-frontrunning protection |
 
+### Canonical Public Events
+
+Emit a canonical public event for a subject:
+
+```solidity
+bytes32 subjectId = keccak256("subject-123");
+bytes32 eventType = keccak256("consume");
+bytes memory data = abi.encode(uint256(1), msg.sender);
+
+// Approve EQTY tokens for burning when using EQTY fees
+eqtyToken.approve(anchorAddress, fee);
+
+// Emit one canonical public event
+anchor.emitPublicEvent(subjectId, eventType, data);
+```
+
+Notes:
+- `source` is always `msg.sender`
+- `eventType` is application-defined
+- `data` is opaque to the anchor contract
+- the same per-item payment model applies as `anchor(...)`
+- callers can pay with ETH or EQTY, depending on Anchor configuration
+
 ## Architecture
 
 ```mermaid
@@ -42,6 +65,10 @@ graph LR
 | **Pay with EQTY** | EQTY burned directly (deflationary) |
 
 The ETH price is automatically derived from `RedeemEQTY.currentRate()`.
+
+Anchor data remains event-based:
+- `Anchored` stores the key, value, sender, and timestamp
+- `PublicEvent` stores canonical subject events with caller source and opaque payload
 
 ## Dynamic Exchange Rate
 
@@ -260,10 +287,3 @@ MIT
 ## Security
 
 For security concerns, please contact: security@eqty.network
-=======
-MIT License - see LICENSE file for details
-
-## Security
-
-For security concerns, please contact: security@eqty.network
->>>>>>> 4116215 (Update README.md)

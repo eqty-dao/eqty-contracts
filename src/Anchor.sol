@@ -22,6 +22,8 @@ interface IEQTY is IERC20 {
  * - ETH: Sent to Redeem contract (price based on currentRate)
  * - EQTY: Burned (deflationary, DAO-configurable amount)
  *
+ * Canonical public events can also be emitted for subject-specific integrations.
+ *
  * @custom:security-contact security@eqty.network
  */
 contract Anchor is IAnchor, Ownable2Step {
@@ -86,16 +88,7 @@ contract Anchor is IAnchor, Ownable2Step {
         uint256 anchorsLength = anchors.length;
         if (anchorsLength > MAX_ANCHORS_PER_TX) revert TooManyAnchors();
 
-        if (anchorsLength > 0) {
-            if (msg.value > 0) {
-                // Payment option 1: ETH - forward to Redeem contract
-                _handleEthPayment(anchorsLength);
-            } else if (eqtyFee > 0 && address(eqtyToken) != address(0)) {
-                // Payment option 2: EQTY - burn tokens
-                uint256 totalFee = eqtyFee * anchorsLength;
-                eqtyToken.burnFrom(msg.sender, totalFee);
-            }
-        }
+        _collectPayment(anchorsLength);
 
         // Cache timestamp once to save gas on multiple anchors
         uint64 timestamp = uint64(block.timestamp);
@@ -108,6 +101,23 @@ contract Anchor is IAnchor, Ownable2Step {
                 ++i;
             }
         }
+    }
+
+    /**
+     * @notice Emit a canonical public event for a subject
+     * @param subjectId The subject identifier the event belongs to
+     * @param eventType The application-defined event type
+     * @param data Opaque event payload
+     * @dev Uses the same ETH-or-EQTY payment model as generic anchoring.
+     */
+    function emitPublicEvent(
+        bytes32 subjectId,
+        bytes32 eventType,
+        bytes calldata data
+    ) external payable override {
+        _collectPayment(1);
+
+        emit PublicEvent(subjectId, msg.sender, eventType, data, uint64(block.timestamp));
     }
 
     /**
@@ -132,15 +142,29 @@ contract Anchor is IAnchor, Ownable2Step {
     // ============ Internal Functions ============
 
     /**
-     * @notice Handle ETH payment by forwarding to Redeem contract
-     * @param anchorsLength Number of anchors being submitted
+     * @notice Collect payment using the same logic for anchors and public events
+     * @param count Number of billable items being submitted
      */
-    function _handleEthPayment(uint256 anchorsLength) internal {
+    function _collectPayment(uint256 count) internal {
+        if (count == 0) return;
+
+        if (msg.value > 0) {
+            _handleEthPayment(count);
+        } else if (eqtyFee > 0 && address(eqtyToken) != address(0)) {
+            eqtyToken.burnFrom(msg.sender, eqtyFee * count);
+        }
+    }
+
+    /**
+     * @notice Handle ETH payment by forwarding to Redeem contract
+     * @param count Number of billable items being submitted
+     */
+    function _handleEthPayment(uint256 count) internal {
         if (address(redeemContract) == address(0)) revert RedeemContractNotSet();
 
         // Get current rate from Redeem contract
         uint256 rate = redeemContract.currentRate();
-        uint256 requiredEth = rate * anchorsLength;
+        uint256 requiredEth = rate * count;
 
         if (msg.value < requiredEth) revert InsufficientETH();
 
