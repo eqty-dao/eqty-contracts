@@ -2,7 +2,7 @@
 pragma solidity ^0.8.28;
 
 import {Test, console2} from "forge-std/Test.sol";
-import {RedeemEQTY} from "../src/RedeemEQTY.sol";
+import {Redeem} from "../src/Redeem.sol";
 import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 
 /**
@@ -26,8 +26,8 @@ contract MockEQTY is ERC20 {
     }
 }
 
-contract RedeemEQTYTest is Test {
-    RedeemEQTY public redeemContract;
+contract RedeemTest is Test {
+    Redeem public redeemContract;
     MockEQTY public eqtyToken;
 
     address public foundation = makeAddr("foundation");
@@ -39,7 +39,7 @@ contract RedeemEQTYTest is Test {
 
     function setUp() public {
         eqtyToken = new MockEQTY();
-        redeemContract = new RedeemEQTY(address(eqtyToken), foundation);
+        redeemContract = new Redeem(address(eqtyToken), foundation);
         eqtyToken.mint(alice, uint256(REDEEM_AMOUNT) * 10);
         vm.deal(address(redeemContract), 10 ether);
 
@@ -60,13 +60,13 @@ contract RedeemEQTYTest is Test {
     }
 
     function test_constructor_revertsOnZeroToken() public {
-        vm.expectRevert(RedeemEQTY.InvalidAddress.selector);
-        new RedeemEQTY(address(0), foundation);
+        vm.expectRevert(Redeem.InvalidAddress.selector);
+        new Redeem(address(0), foundation);
     }
 
     function test_constructor_revertsOnZeroFoundation() public {
-        vm.expectRevert(RedeemEQTY.InvalidAddress.selector);
-        new RedeemEQTY(address(eqtyToken), address(0));
+        vm.expectRevert(Redeem.InvalidAddress.selector);
+        new Redeem(address(eqtyToken), address(0));
     }
 
     // ============ Receive Tests ============
@@ -120,7 +120,7 @@ contract RedeemEQTYTest is Test {
         eqtyToken.approve(address(redeemContract), REDEEM_AMOUNT);
 
         // Request minimum 2 ETH, but rate is only 1 ETH
-        vm.expectRevert(RedeemEQTY.SlippageExceeded.selector);
+        vm.expectRevert(Redeem.SlippageExceeded.selector);
         redeemContract.redeem(2 ether);
 
         vm.stopPrank();
@@ -128,13 +128,13 @@ contract RedeemEQTYTest is Test {
 
     function test_redeem_revertsWhenRateNotSet() public {
         // Deploy new contract without setting rate
-        RedeemEQTY freshContract = new RedeemEQTY(address(eqtyToken), foundation);
+        Redeem freshContract = new Redeem(address(eqtyToken), foundation);
         vm.deal(address(freshContract), 10 ether);
 
         vm.startPrank(alice);
         eqtyToken.approve(address(freshContract), REDEEM_AMOUNT);
 
-        vm.expectRevert(RedeemEQTY.RateNotSet.selector);
+        vm.expectRevert(Redeem.RateNotSet.selector);
         freshContract.redeem(0);
 
         vm.stopPrank();
@@ -285,27 +285,27 @@ contract RedeemEQTYTest is Test {
     // ============ Redeem Error Tests ============
 
     function test_redeem_revertsWithNoETH() public {
-        RedeemEQTY emptyContract = new RedeemEQTY(address(eqtyToken), foundation);
+        Redeem emptyContract = new Redeem(address(eqtyToken), foundation);
         emptyContract.setCurrentRate(INITIAL_RATE);
 
         vm.startPrank(alice);
         eqtyToken.approve(address(emptyContract), REDEEM_AMOUNT);
 
-        vm.expectRevert(RedeemEQTY.InsufficientETH.selector);
+        vm.expectRevert(Redeem.InsufficientETH.selector);
         emptyContract.redeem(0);
         vm.stopPrank();
     }
 
     function test_redeem_revertsWithoutApproval() public {
         vm.prank(alice);
-        vm.expectRevert(RedeemEQTY.InsufficientEQTYAllowance.selector);
+        vm.expectRevert(Redeem.InsufficientEQTYAllowance.selector);
         redeemContract.redeem(0);
     }
 
     function test_redeem_revertsWithInsufficientBalance() public {
         vm.startPrank(bob);
         eqtyToken.approve(address(redeemContract), REDEEM_AMOUNT);
-        vm.expectRevert(RedeemEQTY.InsufficientEQTYBalance.selector);
+        vm.expectRevert(Redeem.InsufficientEQTYBalance.selector);
         redeemContract.redeem(0);
         vm.stopPrank();
     }
@@ -323,7 +323,7 @@ contract RedeemEQTYTest is Test {
     }
 
     function test_setMaxRateChange_revertsIfTooHigh() public {
-        vm.expectRevert(RedeemEQTY.FeeTooHigh.selector);
+        vm.expectRevert(Redeem.FeeTooHigh.selector);
         redeemContract.setMaxRateChange(10_001);
     }
 
@@ -334,7 +334,7 @@ contract RedeemEQTYTest is Test {
     }
 
     function test_setRateBounds_revertsIfInvalid() public {
-        vm.expectRevert(RedeemEQTY.InvalidRateBounds.selector);
+        vm.expectRevert(Redeem.InvalidRateBounds.selector);
         redeemContract.setRateBounds(10 ether, 1 ether); // min > max
     }
 
@@ -349,7 +349,7 @@ contract RedeemEQTYTest is Test {
     }
 
     function test_setFoundationEthFee_revertsIfTooHigh() public {
-        vm.expectRevert(RedeemEQTY.FeeTooHigh.selector);
+        vm.expectRevert(Redeem.FeeTooHigh.selector);
         redeemContract.setFoundationEthFee(10_001);
     }
 
@@ -364,7 +364,7 @@ contract RedeemEQTYTest is Test {
     }
 
     function test_setFoundationEqtyFee_revertsIfTooHigh() public {
-        vm.expectRevert(RedeemEQTY.FeeTooHigh.selector);
+        vm.expectRevert(Redeem.FeeTooHigh.selector);
         redeemContract.setFoundationEqtyFee(10_001);
     }
 
@@ -386,7 +386,7 @@ contract RedeemEQTYTest is Test {
     }
 
     function test_setRedeemAmount_revertsIfZero() public {
-        vm.expectRevert(RedeemEQTY.RedeemAmountTooLow.selector);
+        vm.expectRevert(Redeem.RedeemAmountTooLow.selector);
         redeemContract.setRedeemAmount(0);
     }
 
@@ -427,12 +427,12 @@ contract RedeemEQTYTest is Test {
     }
 
     function test_withdrawFoundationEth_revertsIfNoFees() public {
-        vm.expectRevert(RedeemEQTY.NoFeesToWithdraw.selector);
+        vm.expectRevert(Redeem.NoFeesToWithdraw.selector);
         redeemContract.withdrawFoundationEth();
     }
 
     function test_withdrawFoundationEqty_revertsIfNoFees() public {
-        vm.expectRevert(RedeemEQTY.NoFeesToWithdraw.selector);
+        vm.expectRevert(Redeem.NoFeesToWithdraw.selector);
         redeemContract.withdrawFoundationEqty();
     }
 

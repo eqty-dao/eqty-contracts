@@ -2,11 +2,11 @@
 pragma solidity ^0.8.28;
 
 /**
- * @title IRedeemEQTY
- * @notice Interface for the RedeemEQTY contract
+ * @title IRedeem
+ * @notice Interface for the Redeem contract
  * @dev Allows EQTY holders to redeem tokens for ETH at a dynamic exchange rate
  */
-interface IRedeemEQTY {
+interface IRedeem {
     // ============ View Functions ============
 
     /**

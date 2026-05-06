@@ -375,10 +375,10 @@ contract AnchorTest is Test {
 // ============ ETH Payment Integration Tests ============
 
 /**
- * @title MockRedeemEQTY
+ * @title MockRedeem
  * @notice Mock Redeem contract for testing ETH payments
  */
-contract MockRedeemEQTY {
+contract MockRedeem {
     uint256 public currentRate;
     uint256 public receivedETH;
 
@@ -394,7 +394,7 @@ contract MockRedeemEQTY {
 contract AnchorETHPaymentTest is Test {
     Anchor public anchorContract;
     MockEQTY public eqtyToken;
-    MockRedeemEQTY public redeemContract;
+    MockRedeem public redeemContract;
 
     address public alice = makeAddr("alice");
 
@@ -404,7 +404,7 @@ contract AnchorETHPaymentTest is Test {
     function setUp() public {
         eqtyToken = new MockEQTY();
         anchorContract = new Anchor();
-        redeemContract = new MockRedeemEQTY(ETH_RATE);
+        redeemContract = new MockRedeem(ETH_RATE);
 
         // Configure anchor contract
         anchorContract.setEqtyToken(address(eqtyToken));

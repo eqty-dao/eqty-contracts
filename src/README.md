@@ -1,4 +1,4 @@
-# RedeemEQTY Contract
+# Redeem Contract
 
 Dynamic exchange rate redemption of EQTY tokens for ETH.
 
@@ -6,7 +6,7 @@ Dynamic exchange rate redemption of EQTY tokens for ETH.
 
 ```
                     ┌─────────────────┐
-                    │   RedeemEQTY    │
+                    │     Redeem      │
                     │     Contract    │
                     └────────┬────────┘
                              │
@@ -29,7 +29,7 @@ Dynamic exchange rate redemption of EQTY tokens for ETH.
 
 ### 1. ETH Flows In
 
-Builders pay ETH via Anchor contract → ETH forwarded to RedeemEQTY
+Builders pay ETH via Anchor contract → ETH forwarded to Redeem
 
 ### 2. Rate Self-Adjusts
 
@@ -136,17 +136,17 @@ After deployment, the rate self-adjusts based on actual activity.
 ## Testing
 
 ```bash
-# Run RedeemEQTY tests (40 tests)
-forge test --match-contract RedeemEQTYTest -vvv
+# Run Redeem tests
+forge test --match-contract RedeemTest -vvv
 
 # Gas report
-forge test --match-contract RedeemEQTYTest --gas-report
+forge test --match-contract RedeemTest --gas-report
 ```
 
 ## Deployment
 
 ```bash
-forge script script/DeployRedeem.s.sol:DeployRedeemEQTY \
+forge script script/DeployRedeem.s.sol:DeployRedeem \
   --rpc-url base_mainnet --broadcast --verify
 ```
 
@@ -163,4 +163,4 @@ forge script script/DeployRedeem.s.sol:DeployRedeemEQTY \
 |----------|--------------|
 | [EQTY.sol](./EQTY.sol) | Token that gets burned |
 | [Anchor.sol](./Anchor.sol) | Sends ETH here via payments |
-| [IRedeemEQTY.sol](./interfaces/IRedeemEQTY.sol) | Interface for integrations |
+| [IRedeem.sol](./interfaces/IRedeem.sol) | Interface for integrations |

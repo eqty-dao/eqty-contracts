@@ -7,7 +7,7 @@ Smart contracts for the EQTY protocol on Base.
 The EQTY protocol creates a **Real Yield Loop** where:
 
 1. **Builders/Services** pay fees via Anchor (ETH or EQTY)
-2. **ETH accumulates** in the RedeemEQTY contract
+2. **ETH accumulates** in the Redeem contract
 3. **EQTY holders** can redeem tokens for ETH at a dynamic rate
 4. **EQTY is burned** → deflationary tokenomics
 
@@ -19,7 +19,7 @@ This creates a self-sustaining ecosystem where EQTY value is backed by actual pr
 |----------|-------------|
 | **EQTY.sol** | ERC20 token with 500M cap, bridge-controlled minting, and burn functionality |
 | **Anchor.sol** | Stateless anchoring contract - accepts ETH or EQTY for fee payment |
-| **RedeemEQTY.sol** | Dynamic rate redemption of EQTY for ETH with anti-frontrunning protection |
+| **Redeem.sol** | Dynamic rate redemption of EQTY for ETH with anti-frontrunning protection |
 
 ### Canonical Public Events
 
@@ -50,7 +50,7 @@ Notes:
 graph LR
     A[Builders] -->|ETH| B[Anchor]
     A -->|EQTY| D[Burned]
-    B -->|ETH forwarded| C[RedeemEQTY]
+    B -->|ETH forwarded| C[Redeem]
     C -->|rate| B
     E[EQTY Holders] -->|10k EQTY| C
     C -->|ETH| E
@@ -64,7 +64,7 @@ graph LR
 | **Pay with ETH** | ETH forwarded to Redeem contract → distributed to EQTY holders |
 | **Pay with EQTY** | EQTY burned directly (deflationary) |
 
-The ETH price is automatically derived from `RedeemEQTY.currentRate()`.
+The ETH price is automatically derived from `Redeem.currentRate()`.
 
 Anchor data remains event-based:
 - `Anchored` stores the key, value, sender, and timestamp
@@ -146,7 +146,7 @@ cp .env.example .env
 # 1. Deploy EQTY token (if not already deployed)
 forge script script/DeployEQTY.s.sol --rpc-url base-sepolia --broadcast --verify
 
-# 2. Deploy RedeemEQTY (needs EQTY address)
+# 2. Deploy Redeem (needs EQTY address)
 forge script script/DeployRedeem.s.sol --rpc-url base-sepolia --broadcast --verify
 
 # 3. Deploy Anchor (needs EQTY and Redeem addresses)
@@ -178,15 +178,15 @@ eqty-contracts/
 ├── src/                    # Contract source files
 │   ├── Anchor.sol          # Anchoring with ETH/EQTY payment
 │   ├── EQTY.sol            # ERC20 token
-│   ├── RedeemEQTY.sol      # Dynamic rate redemption
-│   ├── README.md           # Detailed RedeemEQTY docs
+│   ├── Redeem.sol          # Dynamic rate redemption
+│   ├── README.md           # Detailed Redeem docs
 │   └── interfaces/
 │       ├── IAnchor.sol     # Anchor interface
-│       └── IRedeemEQTY.sol # Redeem interface
+│       └── IRedeem.sol     # Redeem interface
 ├── test/                   # Foundry tests (89 tests)
 │   ├── Anchor.t.sol
 │   ├── EQTY.t.sol
-│   └── RedeemEQTY.t.sol
+│   └── Redeem.t.sol
 ├── script/                 # Deployment scripts
 │   ├── DeployAnchor.s.sol
 │   ├── DeployEQTY.s.sol
@@ -204,7 +204,7 @@ eqty-contracts/
 | EQTY Token | `0xC71F37D9bF4C5d1E7Fe4bCcB97e6f30B11b37D29` |
 | Treasury | `0x2Bc456799F3Cf071B10CE7216269471e0A40381a` |
 | Anchor | *Pending deployment* |
-| RedeemEQTY | *Pending deployment* |
+| Redeem | *Pending deployment* |
 
 ### Base Sepolia (Testnet)
 
@@ -263,7 +263,7 @@ All contracts are optimized for gas efficiency on Base L2:
 - `via_ir` enabled for advanced optimizations
 - 200 optimizer runs
 - Minimal storage operations in Anchor (stateless design)
-- Packed storage in RedeemEQTY (single slot for core config)
+- Packed storage in Redeem (single slot for core config)
 - Custom errors instead of require strings
 
 ## Security
@@ -272,7 +272,7 @@ All contracts are optimized for gas efficiency on Base L2:
 |----------|-------------------|
 | **Anchor** | `Ownable2Step`, custom errors, max 100 anchors per tx |
 | **EQTY** | Immutable bridge wallet, time-limited minting, 500M cap |
-| **RedeemEQTY** | `Ownable2Step`, `ReentrancyGuard`, `SafeERC20`, slippage protection, rate bounds |
+| **Redeem** | `Ownable2Step`, `ReentrancyGuard`, `SafeERC20`, slippage protection, rate bounds |
 
 ### Trust Model
 

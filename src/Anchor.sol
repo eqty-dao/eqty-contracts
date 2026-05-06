@@ -2,7 +2,7 @@
 pragma solidity ^0.8.28;
 
 import "./interfaces/IAnchor.sol";
-import "./interfaces/IRedeemEQTY.sol";
+import "./interfaces/IRedeem.sol";
 import "@openzeppelin/contracts/access/Ownable2Step.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
@@ -31,7 +31,7 @@ contract Anchor is IAnchor, Ownable2Step {
     IEQTY public eqtyToken;
 
     /// @notice The Redeem contract that receives ETH and provides rate
-    IRedeemEQTY public redeemContract;
+    IRedeem public redeemContract;
 
     /// @notice Fee amount in EQTY tokens per anchor (DAO-configurable)
     uint256 public eqtyFee;
@@ -207,7 +207,7 @@ contract Anchor is IAnchor, Ownable2Step {
      */
     function setRedeemContract(address newRedeemContract) external onlyOwner {
         address oldContract = address(redeemContract);
-        redeemContract = IRedeemEQTY(newRedeemContract);
+        redeemContract = IRedeem(newRedeemContract);
         emit RedeemContractUpdated(oldContract, newRedeemContract);
     }
 }

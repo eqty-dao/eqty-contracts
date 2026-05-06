@@ -16,7 +16,7 @@ interface IEQTY is IERC20 {
 }
 
 /**
- * @title RedeemEQTY
+ * @title Redeem
  * @notice Allows users to redeem EQTY tokens for ETH collected from Ownables fees
  * @dev Implements a "capped percentage update" mechanism for dynamic exchange rates
  *
@@ -32,7 +32,7 @@ interface IEQTY is IERC20 {
  * Where:
  *   r = current rate, p = actual payout, m = max change percentage
  */
-contract RedeemEQTY is Ownable2Step, ReentrancyGuard {
+contract Redeem is Ownable2Step, ReentrancyGuard {
     using SafeERC20 for IERC20;
 
     // ============ Constants ============
