@@ -17,6 +17,9 @@ cache/
 artifacts/
 typechain-types/
 
+# Foundry files
+out/
+
 # Environment variables
 .env
 .env.local
@@ -68,5 +71,7 @@ abi/
 # Docs (if generated)
 docs/
 
-# Gas reports
+# Generated reports
 gas-report.txt
+gas_report.txt
+test_output.txt
