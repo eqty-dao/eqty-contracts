@@ -21,28 +21,21 @@ This creates a self-sustaining ecosystem where EQTY value is backed by actual pr
 | **Anchor.sol** | Stateless anchoring contract - accepts ETH or EQTY for fee payment |
 | **Redeem.sol** | Dynamic rate redemption of EQTY for ETH with anti-frontrunning protection |
 
+Detailed contract docs:
+- [Anchor.md](./Anchor.md)
+- [Redeem.md](./Redeem.md)
+
 ### Canonical Public Events
 
-Emit a canonical public event for a subject:
+Anchor can emit canonical `PublicEvent` logs for subject-specific integrations.
 
-```solidity
-bytes32 subjectId = keccak256("subject-123");
-bytes32 eventType = keccak256("consume");
-bytes memory data = abi.encode(uint256(1), msg.sender);
+`emitPublicEvent` can be used in two ways:
+- an external contract can call Anchor as part of its own flow
+- an Ownable owner can call Anchor directly
 
-// Approve EQTY tokens for burning when using EQTY fees
-eqtyToken.approve(anchorAddress, fee);
+In both cases, the immediate caller is the emitted `source` and the payer. Which sources are semantically accepted is decided by the Ownable implementation, not by Anchor.
 
-// Emit one canonical public event
-anchor.emitPublicEvent(subjectId, eventType, data);
-```
-
-Notes:
-- `source` is always `msg.sender`
-- `eventType` is application-defined
-- `data` is opaque to the anchor contract
-- the same per-item payment model applies as `anchor(...)`
-- callers can pay with ETH or EQTY, depending on Anchor configuration
+See [Anchor.md](./Anchor.md) for the detailed behavior, payment model, and trust model.
 
 ## Architecture
 
@@ -57,18 +50,7 @@ graph LR
     E -->|burned| D
 ```
 
-## Payment Options (Anchor)
-
-| Method | What Happens |
-|--------|--------------|
-| **Pay with ETH** | ETH forwarded to Redeem contract → distributed to EQTY holders |
-| **Pay with EQTY** | EQTY burned directly (deflationary) |
-
-The ETH price is automatically derived from `Redeem.currentRate()`.
-
-Anchor data remains event-based:
-- `Anchored` stores the key, value, sender, and timestamp
-- `PublicEvent` stores canonical subject events with caller source and opaque payload
+Anchor accepts payment in either ETH or EQTY. ETH is forwarded to `Redeem`, while EQTY is burned. See [Anchor.md](./Anchor.md) for details.
 
 ## Dynamic Exchange Rate
 
@@ -175,11 +157,12 @@ anchorContract.transferOwnership(daoMultisig);
 
 ```
 eqty-contracts/
+├── Anchor.md               # Detailed Anchor docs
+├── Redeem.md               # Detailed Redeem docs
 ├── src/                    # Contract source files
 │   ├── Anchor.sol          # Anchoring with ETH/EQTY payment
 │   ├── EQTY.sol            # ERC20 token
 │   ├── Redeem.sol          # Dynamic rate redemption
-│   ├── README.md           # Detailed Redeem docs
 │   └── interfaces/
 │       ├── IAnchor.sol     # Anchor interface
 │       └── IRedeem.sol     # Redeem interface
