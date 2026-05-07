@@ -19,7 +19,7 @@ This creates a self-sustaining ecosystem where EQTY value is backed by actual pr
 |----------|-------------|
 | **EQTY.sol** | ERC20 token with 500M cap, bridge-controlled minting, and burn functionality |
 | **Anchor.sol** | Stateless anchoring contract - accepts ETH or EQTY for fee payment |
-| **Redeem.sol** | Dynamic rate redemption of EQTY for ETH with anti-frontrunning protection |
+| **Redeem.sol** | Dynamic rate redemption of EQTY for ETH with exact-output execution |
 
 Detailed contract docs:
 - [Anchor.md](./Anchor.md)
@@ -255,7 +255,7 @@ All contracts are optimized for gas efficiency on Base L2:
 |----------|-------------------|
 | **Anchor** | `Ownable2Step`, custom errors, max 100 anchors per tx |
 | **EQTY** | Immutable bridge wallet, time-limited minting, 500M cap |
-| **Redeem** | `Ownable2Step`, `ReentrancyGuard`, `SafeERC20`, slippage protection, rate bounds |
+| **Redeem** | `Ownable2Step`, `ReentrancyGuard`, `SafeERC20`, exact-output enforcement, rate bounds |
 
 ### Trust Model
 

@@ -25,7 +25,7 @@ interface IEQTY is IERC20 {
  * - Anyone can send EQTY to receive ETH based on current rate
  * - EQTY is burned (deflationary) with optional foundation fee
  * - Exchange rate updates gradually with capped changes per redeem
- * - Anti-frontrunning protection via minEthOut parameter
+ * - Exact ETH-out redemption for a fixed EQTY input amount
  *
  * Rate Update Formula:
  *   r_next = r * clamp(p / r, 1 - m, 1 + m)
@@ -107,7 +107,7 @@ contract Redeem is Ownable2Step, ReentrancyGuard {
     // ============ Errors ============
 
     error InsufficientETH();
-    error SlippageExceeded();
+    error UnexpectedEthOut();
     error InsufficientEQTYAllowance();
     error InsufficientEQTYBalance();
     error FeeTooHigh();
@@ -155,11 +155,11 @@ contract Redeem is Ownable2Step, ReentrancyGuard {
 
     /**
      * @notice Internal redeem implementation
-     * @param minEthOut Minimum ETH expected (anti-frontrunning)
+     * @param ethOut Exact ETH expected after fees
      * @dev Burns EQTY from caller (minus foundation fee) and sends ETH (minus foundation fee)
      *      Updates exchange rate using capped percentage formula
      */
-    function _redeem(uint256 minEthOut) internal {
+    function _redeem(uint256 ethOut) internal {
         if (currentRate == 0) revert RateNotSet();
 
         uint256 ethBalance = address(this).balance - pendingFoundationEth;
@@ -200,8 +200,7 @@ contract Redeem is Ownable2Step, ReentrancyGuard {
             eqtyToBurn = amount - eqtyFee;
         }
 
-        // Anti-frontrunning check
-        if (ethToSend < minEthOut) revert SlippageExceeded();
+        if (ethToSend != ethOut) revert UnexpectedEthOut();
 
         // Update exchange rate using capped percentage formula
         // r_next = r * clamp(p / r, 1 - m, 1 + m)
@@ -229,13 +228,13 @@ contract Redeem is Ownable2Step, ReentrancyGuard {
     }
 
     /**
-     * @notice Redeem EQTY tokens for ETH with slippage protection
-     * @param minEthOut Minimum ETH expected (anti-frontrunning)
+     * @notice Redeem a fixed EQTY amount for an exact ETH output
+     * @param ethOut Exact ETH expected after fees
      * @dev Burns EQTY from caller (minus foundation fee) and sends ETH (minus foundation fee)
      *      Updates exchange rate using capped percentage formula
      */
-    function redeem(uint256 minEthOut) external nonReentrant {
-        _redeem(minEthOut);
+    function redeem(uint256 ethOut) external nonReentrant {
+        _redeem(ethOut);
     }
 
     /**

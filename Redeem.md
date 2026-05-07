@@ -21,7 +21,7 @@ Dynamic exchange rate redemption of EQTY tokens for ETH.
 **Key Features:**
 
 - 🔄 **Dynamic rate** - Adjusts gradually based on redemptions
-- 🛡️ **Anti-frontrunning** - `minEthOut` slippage protection
+- 🎯 **Exact output** - Redeem succeeds only when the requested net ETH matches current output
 - 📊 **Capped updates** - Max ±10% rate change per redeem
 - 🔥 **Deflationary** - EQTY burned with optional foundation fee
 
@@ -52,14 +52,9 @@ EQTY holders burn 10,000 EQTY → Receive ETH at current rate
 // 2. Approve EQTY spending
 eqtyToken.approve(address(redeemContract), 10_000 ether);
 
-// 3. Redeem with slippage protection
-redeemContract.redeem(ethOut * 95 / 100); // Accept up to 5% slippage
+// 3. Redeem for the exact previewed ETH output
+redeemContract.redeem(ethOut);
 ```
-
-**Slippage Protection:**
-
-- Pass `minEthOut` to revert if you'd receive less
-- Use `0` to accept any amount (not recommended for large amounts)
 
 ## Exchange Rate Mechanism
 
@@ -110,7 +105,7 @@ After deployment, the rate self-adjusts based on actual activity.
 |-------|-------|----------|
 | `RateNotSet()` | currentRate is 0 | Owner must call `setCurrentRate()` |
 | `InsufficientETH()` | No ETH in contract | Wait for more ETH or check `availableEth()` |
-| `SlippageExceeded()` | Output < minEthOut | Lower `minEthOut` or call `previewRedeem()` |
+| `UnexpectedEthOut()` | Requested ETH does not match current net redeem output | Call `previewRedeem()` again and retry |
 | `InsufficientEQTYAllowance()` | User hasn't approved | Call `eqtyToken.approve()` |
 | `InsufficientEQTYBalance()` | Not enough EQTY | Need 10,000 EQTY (default) |
 
@@ -121,7 +116,7 @@ After deployment, the rate self-adjusts based on actual activity.
 | **ReentrancyGuard** | Prevents reentrancy attacks |
 | **Ownable2Step** | Two-step ownership transfer (secure DAO handoff) |
 | **SafeERC20** | Safe token transfers |
-| **Slippage protection** | `minEthOut` prevents frontrunning |
+| **Exact output enforcement** | Requested ETH must match current net redeem output |
 | **Rate bounds** | `minRate`/`maxRate` prevent extreme values |
 | **CEI Pattern** | Checks-Effects-Interactions ordering |
 | **No pause function** | Trustless - cannot be stopped |

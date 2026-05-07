@@ -53,10 +53,10 @@ interface IRedeem {
     // ============ State-Changing Functions ============
 
     /**
-     * @notice Redeem EQTY tokens for ETH with slippage protection
-     * @param minEthOut Minimum ETH expected (revert if less)
+     * @notice Redeem a fixed EQTY amount for an exact ETH output
+     * @param ethOut Exact ETH expected after fees
      */
-    function redeem(uint256 minEthOut) external;
+    function redeem(uint256 ethOut) external;
 
     // ============ Events ============
 
@@ -95,7 +95,7 @@ interface IRedeem {
     // ============ Errors ============
 
     error InsufficientETH();
-    error SlippageExceeded();
+    error UnexpectedEthOut();
     error InsufficientEQTYAllowance();
     error InsufficientEQTYBalance();
     error RateNotSet();
