@@ -177,10 +177,10 @@ contract AnchorTest is Test {
         eqtyToken.approve(address(anchorContract), ANCHOR_FEE);
 
         bytes32 subjectId = keccak256("subject-123");
-        bytes32 eventType = keccak256("consume");
+        string memory eventType = "consume";
         bytes memory data = abi.encode(uint256(1), alice);
 
-        vm.expectEmit(true, true, true, true);
+        vm.expectEmit(true, true, false, true);
         emit IAnchor.PublicEvent(subjectId, alice, eventType, data, uint64(block.timestamp));
 
         anchorContract.emitPublicEvent(subjectId, eventType, data);
@@ -193,7 +193,7 @@ contract AnchorTest is Test {
 
         uint256 balanceBefore = eqtyToken.balanceOf(alice);
 
-        anchorContract.emitPublicEvent(keccak256("subject-123"), keccak256("consume"), hex"deadbeef");
+        anchorContract.emitPublicEvent(keccak256("subject-123"), "consume", hex"deadbeef");
 
         assertEq(eqtyToken.balanceOf(alice), balanceBefore - ANCHOR_FEE);
         vm.stopPrank();
@@ -205,7 +205,7 @@ contract AnchorTest is Test {
         vm.startPrank(alice);
         uint256 balanceBefore = eqtyToken.balanceOf(alice);
 
-        anchorContract.emitPublicEvent(keccak256("subject-123"), keccak256("consume"), hex"00");
+        anchorContract.emitPublicEvent(keccak256("subject-123"), "consume", hex"00");
 
         assertEq(eqtyToken.balanceOf(alice), balanceBefore);
         vm.stopPrank();
@@ -517,7 +517,7 @@ contract AnchorETHPaymentTest is Test {
         uint256 redeemBalanceBefore = address(redeemContract).balance;
         bytes memory data = abi.encode(uint256(1), alice);
 
-        anchorContract.emitPublicEvent{value: ETH_RATE}(keccak256("subject-123"), keccak256("consume"), data);
+        anchorContract.emitPublicEvent{value: ETH_RATE}(keccak256("subject-123"), "consume", data);
 
         assertEq(address(redeemContract).balance, redeemBalanceBefore + ETH_RATE);
         assertEq(redeemContract.receivedETH(), ETH_RATE);

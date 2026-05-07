@@ -35,6 +35,8 @@ Anchor can emit canonical `PublicEvent` logs for subject-specific integrations.
 
 In both cases, the immediate caller is the emitted `source` and the payer. Which sources are semantically accepted is decided by the Ownable implementation, not by Anchor.
 
+The public-event `eventType` is stored as a readable string so it remains understandable when users sign event-triggering actions.
+
 See [Anchor.md](./Anchor.md) for the detailed behavior, payment model, and trust model.
 
 ## Architecture

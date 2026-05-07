@@ -106,13 +106,13 @@ contract Anchor is IAnchor, Ownable2Step {
     /**
      * @notice Emit a canonical public event for a subject
      * @param subjectId The subject identifier the event belongs to
-     * @param eventType The application-defined event type
+     * @param eventType The human-readable application-defined event type
      * @param data Opaque event payload
      * @dev Uses the same ETH-or-EQTY payment model as generic anchoring.
      */
     function emitPublicEvent(
         bytes32 subjectId,
-        bytes32 eventType,
+        string calldata eventType,
         bytes calldata data
     ) external payable override {
         _collectPayment(1);

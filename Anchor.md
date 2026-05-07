@@ -38,12 +38,12 @@ Typical uses:
 
 ### 2. Canonical public events
 
-Call `emitPublicEvent(bytes32 subjectId, bytes32 eventType, bytes calldata data)` to emit a canonical public event for a subject.
+Call `emitPublicEvent(bytes32 subjectId, string calldata eventType, bytes calldata data)` to emit a canonical public event for a subject.
 
 The Anchor contract records:
 - `subjectId`
 - `source`
-- `eventType`
+- human-readable `eventType`
 - opaque `data`
 - `timestamp`
 
@@ -63,7 +63,7 @@ Example:
 function consume(bytes32 subjectId, bytes calldata data) external payable {
     anchor.emitPublicEvent{value: msg.value}(
         subjectId,
-        keccak256("consume"),
+        "consume",
         data
     );
 }
@@ -84,7 +84,7 @@ Example:
 eqty.approve(address(anchor), fee);
 anchor.emitPublicEvent(
     subjectId,
-    keccak256("manual_update"),
+    "manual_update",
     data
 );
 ```
@@ -144,7 +144,7 @@ This keeps Anchor simple and lets each subject implementation define its own tru
 | Function | Purpose |
 |----------|---------|
 | `anchor(Anchor[] calldata)` | Emit one or more generic anchor events |
-| `emitPublicEvent(bytes32, bytes32, bytes)` | Emit one canonical public event |
+| `emitPublicEvent(bytes32, string, bytes)` | Emit one canonical public event |
 | `getEthFee()` | Read current ETH fee per item |
 | `previewEthCost(uint256)` | Read ETH cost for a batch size |
 | `setEqtyFee(uint256)` | Set EQTY fee per item |
