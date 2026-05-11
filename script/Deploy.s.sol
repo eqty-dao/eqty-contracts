@@ -16,7 +16,7 @@ contract Deploy is Script {
         uint256 initialExchangeRate = vm.envUint("INITIAL_EXCHANGE_RATE");
         uint128 redeemAmount = uint128(vm.envUint("REDEEM_AMOUNT"));
         uint16 anchorEthPremiumBps = uint16(vm.envUint("ANCHOR_ETH_PREMIUM_BPS"));
-        uint256 eqtyFee = vm.envOr("EQTY_FEE", uint256(100 ether));
+        uint256 eqtyFee = vm.envUint("EQTY_FEE");
 
         bool isMainnet = block.chainid == 8453;
         address eqtyToken = vm.envOr("EQTY_TOKEN_ADDRESS", isMainnet ? EQTY_TOKEN_MAINNET : address(0));

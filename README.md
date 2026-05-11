@@ -146,7 +146,7 @@ forge script script/DeployAnchor.s.sol:DeployAnchor --rpc-url "$BASE_SEPOLIA_RPC
 // Configure Anchor to point to Redeem
 anchorContract.setRedeemContract(redeemAddress);
 anchorContract.setEqtyToken(eqtyAddress);
-anchorContract.setEqtyFee(100 ether); // 100 EQTY per anchor (DAO-configurable)
+anchorContract.setEqtyFee(10 ether); // 10 EQTY per anchor
 ```
 
 ## Project Structure
@@ -231,6 +231,7 @@ BRIDGE_WALLET=          # Required if Deploy.s.sol or DeployEQTY.s.sol should de
 INITIAL_EXCHANGE_RATE=  # Required: initial ETH per redeem amount
 REDEEM_AMOUNT=          # Required: EQTY burned on each redeem
 ANCHOR_ETH_PREMIUM_BPS= # Required: ETH premium over the EQTY-priced anchor fee
+EQTY_FEE=               # Required: EQTY fee per anchor, no default
 MINT_DEADLINE=          # Optional: EQTY mint deadline when EQTY is deployed
 MINT_TO=                # Optional: mint recipient for MintEQTY.s.sol, defaults to FOUNDATION_WALLET
 MINT_AMOUNT=            # Optional: mint amount for MintEQTY.s.sol, defaults to 1000000 ether
