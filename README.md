@@ -170,7 +170,8 @@ eqty-contracts/
 │   ├── DeployAnchor.s.sol
 │   ├── Deploy.s.sol
 │   ├── DeployEQTY.s.sol
-│   └── DeployRedeem.s.sol
+│   ├── DeployRedeem.s.sol
+│   └── MintEQTY.s.sol
 ├── foundry.toml            # Foundry configuration
 └── package.json            # NPM dependencies
 ```
@@ -190,7 +191,9 @@ eqty-contracts/
 
 | Contract | Address |
 |----------|---------|
-| Anchor | `0x7607af0cea78815c71bbea90110b2c218879354b` |
+| EQTY Token | `0x24159513a74ca294f5367764557438d318eb7ffe` |
+| Redeem | `0xbc138a25147b1cf798f1e04a9c20e5e37615ef92` |
+| Anchor | `0x53c2bb8af1c082774b6615abbc969c627344d76d` |
 
 ## DAO Configuration
 
@@ -216,7 +219,7 @@ eqty-contracts/
 PRIVATE_KEY=            # Deployer private key
 BASE_MAINNET_RPC_URL=   # Base mainnet RPC
 BASE_SEPOLIA_RPC_URL=   # Base Sepolia RPC
-BASESCAN_API_KEY=       # For contract verification
+ETHERSCAN_API_KEY=      # For contract verification on Base via Etherscan V2
 
 # Existing deployments / overrides
 EQTY_TOKEN_ADDRESS=     # Optional: reuse an existing EQTY token
@@ -229,6 +232,8 @@ INITIAL_EXCHANGE_RATE=  # Required: initial ETH per redeem amount
 REDEEM_AMOUNT=          # Required: EQTY burned on each redeem
 ANCHOR_ETH_PREMIUM_BPS= # Required: ETH premium over the EQTY-priced anchor fee
 MINT_DEADLINE=          # Optional: EQTY mint deadline when EQTY is deployed
+MINT_TO=                # Optional: mint recipient for MintEQTY.s.sol, defaults to FOUNDATION_WALLET
+MINT_AMOUNT=            # Optional: mint amount for MintEQTY.s.sol, defaults to 1000000 ether
 ```
 
 ## Gas Optimization
