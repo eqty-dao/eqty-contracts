@@ -124,22 +124,21 @@ forge test --match-path test/Anchor.t.sol
 cp .env.example .env
 ```
 
-1. Deploy contracts in order:
+1. Deploy contracts:
 
 ```bash
-# 1. Optional: deploy EQTY token separately
-forge script script/DeployEQTY.s.sol --rpc-url base-sepolia --broadcast --verify
+# One-shot deployment:
+# - reuses EQTY_TOKEN_ADDRESS when set, otherwise deploys EQTY
+# - reuses REDEEM_CONTRACT_ADDRESS when set, otherwise deploys Redeem
+forge script script/Deploy.s.sol:Deploy --rpc-url "$BASE_SEPOLIA_RPC_URL" --broadcast --verify
 
-# 2. Deploy Redeem
-# - reuses EQTY_TOKEN_ADDRESS when set
-# - otherwise deploys EQTY first on Base Sepolia using BRIDGE_WALLET
-forge script script/DeployRedeem.s.sol --rpc-url base-sepolia --broadcast --verify
-
-# 3. Deploy Anchor (needs EQTY and Redeem addresses)
-forge script script/DeployAnchor.s.sol --rpc-url base-sepolia --broadcast --verify
+# Individual deployers:
+forge script script/DeployEQTY.s.sol:DeployEQTY --rpc-url "$BASE_SEPOLIA_RPC_URL" --broadcast --verify
+forge script script/DeployRedeem.s.sol:DeployRedeem --rpc-url "$BASE_SEPOLIA_RPC_URL" --broadcast --verify
+forge script script/DeployAnchor.s.sol:DeployAnchor --rpc-url "$BASE_SEPOLIA_RPC_URL" --broadcast --verify
 ```
 
-On Base Sepolia, `DeployRedeem` will deploy a new EQTY token when `EQTY_TOKEN_ADDRESS` is unset. If you already have a testnet EQTY deployment, set `EQTY_TOKEN_ADDRESS` and the script will reuse it instead.
+`Deploy.s.sol` is the orchestrator. The individual deployers each deploy exactly one contract. `DeployRedeem` requires `EQTY_TOKEN_ADDRESS`, and `DeployAnchor` requires `EQTY_TOKEN_ADDRESS` plus an optional `REDEEM_CONTRACT_ADDRESS`.
 
 1. Post-deployment configuration:
 
@@ -169,6 +168,7 @@ eqty-contracts/
 │   └── Redeem.t.sol
 ├── script/                 # Deployment scripts
 │   ├── DeployAnchor.s.sol
+│   ├── Deploy.s.sol
 │   ├── DeployEQTY.s.sol
 │   └── DeployRedeem.s.sol
 ├── foundry.toml            # Foundry configuration
@@ -220,13 +220,14 @@ BASESCAN_API_KEY=       # For contract verification
 
 # Existing deployments / overrides
 EQTY_TOKEN_ADDRESS=     # Optional: reuse an existing EQTY token
-REDEEM_CONTRACT_ADDRESS=
+REDEEM_CONTRACT_ADDRESS= # Optional: reuse an existing Redeem contract
 
 # Configuration
-BRIDGE_WALLET=          # Required if DeployRedeem should deploy EQTY on testnet
+FOUNDATION_WALLET=      # Required: recipient configured in Redeem
+BRIDGE_WALLET=          # Required if Deploy.s.sol or DeployEQTY.s.sol should deploy EQTY
 INITIAL_EXCHANGE_RATE=  # Required: initial ETH per redeem amount
 REDEEM_AMOUNT=          # Required: EQTY burned on each redeem
-MINT_DEADLINE=          # Optional: EQTY mint deadline when deployed from DeployRedeem
+MINT_DEADLINE=          # Optional: EQTY mint deadline when EQTY is deployed
 ```
 
 ## Gas Optimization
