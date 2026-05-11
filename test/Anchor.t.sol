@@ -381,13 +381,23 @@ contract AnchorTest is Test {
 contract MockRedeem {
     uint256 public exchangeRate;
     uint256 public receivedETH;
+    uint128 public redeemAmount;
+    uint16 public anchorEthPremiumBps;
 
-    constructor(uint256 _rate) {
+    constructor(uint256 _rate, uint128 _redeemAmount, uint16 _anchorEthPremiumBps) {
         exchangeRate = _rate;
+        redeemAmount = _redeemAmount;
+        anchorEthPremiumBps = _anchorEthPremiumBps;
     }
 
     receive() external payable {
         receivedETH += msg.value;
+    }
+
+    function quoteAnchorFee(uint256 eqtyAmount) external view returns (uint256) {
+        uint256 baseEthAmount = (exchangeRate * eqtyAmount) / redeemAmount;
+        uint256 premium = (baseEthAmount * anchorEthPremiumBps) / 10_000;
+        return baseEthAmount + premium;
     }
 }
 
@@ -398,13 +408,16 @@ contract AnchorETHPaymentTest is Test {
 
     address public alice = makeAddr("alice");
 
-    uint256 public constant ETH_RATE = 0.001 ether; // Rate from redeem contract
-    uint256 public constant EQTY_FEE = 0.1 ether;
+    uint256 public constant EXCHANGE_RATE = 0.1 ether;
+    uint128 public constant REDEEM_AMOUNT = 10_000 ether;
+    uint16 public constant ANCHOR_ETH_PREMIUM_BPS = 2000;
+    uint256 public constant EQTY_FEE = 100 ether;
+    uint256 public constant ETH_FEE = 0.0012 ether;
 
     function setUp() public {
         eqtyToken = new MockEQTY();
         anchorContract = new Anchor();
-        redeemContract = new MockRedeem(ETH_RATE);
+        redeemContract = new MockRedeem(EXCHANGE_RATE, REDEEM_AMOUNT, ANCHOR_ETH_PREMIUM_BPS);
 
         // Configure anchor contract
         anchorContract.setEqtyToken(address(eqtyToken));
@@ -424,10 +437,10 @@ contract AnchorETHPaymentTest is Test {
 
         uint256 redeemBalanceBefore = address(redeemContract).balance;
 
-        anchorContract.anchor{value: ETH_RATE}(anchors);
+        anchorContract.anchor{value: ETH_FEE}(anchors);
 
-        assertEq(address(redeemContract).balance, redeemBalanceBefore + ETH_RATE);
-        assertEq(redeemContract.receivedETH(), ETH_RATE);
+        assertEq(address(redeemContract).balance, redeemBalanceBefore + ETH_FEE);
+        assertEq(redeemContract.receivedETH(), ETH_FEE);
 
         vm.stopPrank();
     }
@@ -442,7 +455,7 @@ contract AnchorETHPaymentTest is Test {
             });
         }
 
-        uint256 requiredEth = ETH_RATE * 5;
+        uint256 requiredEth = ETH_FEE * 5;
 
         anchorContract.anchor{value: requiredEth}(anchors);
 
@@ -460,7 +473,7 @@ contract AnchorETHPaymentTest is Test {
 
         // Only pay for 1 anchor when submitting 2
         vm.expectRevert(Anchor.InsufficientETH.selector);
-        anchorContract.anchor{value: ETH_RATE}(anchors);
+        anchorContract.anchor{value: ETH_FEE}(anchors);
 
         vm.stopPrank();
     }
@@ -476,7 +489,7 @@ contract AnchorETHPaymentTest is Test {
         IAnchor.Anchor[] memory anchors = new IAnchor.Anchor[](1);
         anchors[0] = IAnchor.Anchor({key: keccak256("test-key"), value: keccak256("test-value")});
 
-        anchorContract.anchor{value: ETH_RATE}(anchors);
+        anchorContract.anchor{value: ETH_FEE}(anchors);
 
         // EQTY should not have been burned
         assertEq(eqtyToken.balanceOf(alice), eqtyBalanceBefore);
@@ -485,13 +498,13 @@ contract AnchorETHPaymentTest is Test {
     }
 
     function test_getEthFee_returnsRateFromRedeem() public view {
-        assertEq(anchorContract.getEthFee(), ETH_RATE);
+        assertEq(anchorContract.getEthFee(), ETH_FEE);
     }
 
     function test_previewEthCost_calculatesCorrectly() public view {
-        assertEq(anchorContract.previewEthCost(1), ETH_RATE);
-        assertEq(anchorContract.previewEthCost(5), ETH_RATE * 5);
-        assertEq(anchorContract.previewEthCost(100), ETH_RATE * 100);
+        assertEq(anchorContract.previewEthCost(1), ETH_FEE);
+        assertEq(anchorContract.previewEthCost(5), ETH_FEE * 5);
+        assertEq(anchorContract.previewEthCost(100), ETH_FEE * 100);
     }
 
     function test_anchor_withEQTY_stillWorks() public {
@@ -517,10 +530,10 @@ contract AnchorETHPaymentTest is Test {
         uint256 redeemBalanceBefore = address(redeemContract).balance;
         bytes memory data = abi.encode(uint256(1), alice);
 
-        anchorContract.emitPublicEvent{value: ETH_RATE}(keccak256("subject-123"), "consume", data);
+        anchorContract.emitPublicEvent{value: ETH_FEE}(keccak256("subject-123"), "consume", data);
 
-        assertEq(address(redeemContract).balance, redeemBalanceBefore + ETH_RATE);
-        assertEq(redeemContract.receivedETH(), ETH_RATE);
+        assertEq(address(redeemContract).balance, redeemBalanceBefore + ETH_FEE);
+        assertEq(redeemContract.receivedETH(), ETH_FEE);
 
         vm.stopPrank();
     }

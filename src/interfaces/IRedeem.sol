@@ -16,6 +16,12 @@ interface IRedeem {
     function exchangeRate() external view returns (uint256);
 
     /**
+     * @notice Get the ETH premium applied to anchor fees, in basis points
+     * @return Premium in basis points
+     */
+    function anchorEthPremiumBps() external view returns (uint16);
+
+    /**
      * @notice Get the amount of ETH available for redemption
      * @return Available ETH in wei
      */
@@ -33,6 +39,13 @@ interface IRedeem {
      * @return Amount in wei
      */
     function redeemAmount() external view returns (uint128);
+
+    /**
+     * @notice Quote the ETH required to pay an anchor fee for a given EQTY amount
+     * @param eqtyAmount EQTY amount being priced
+     * @return ETH required in wei
+     */
+    function quoteAnchorFee(uint256 eqtyAmount) external view returns (uint256);
 
     // ============ State-Changing Functions ============
 
@@ -64,4 +77,5 @@ interface IRedeem {
     error InsufficientEQTYBalance();
     error InvalidExchangeRate();
     error InvalidRedeemAmount();
+    error InvalidAnchorEthPremium();
 }

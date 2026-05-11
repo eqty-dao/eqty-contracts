@@ -15,6 +15,7 @@ contract Deploy is Script {
         address foundationWallet = vm.envAddress("FOUNDATION_WALLET");
         uint256 initialExchangeRate = vm.envUint("INITIAL_EXCHANGE_RATE");
         uint128 redeemAmount = uint128(vm.envUint("REDEEM_AMOUNT"));
+        uint16 anchorEthPremiumBps = uint16(vm.envUint("ANCHOR_ETH_PREMIUM_BPS"));
         uint256 eqtyFee = vm.envOr("EQTY_FEE", uint256(100 ether));
 
         bool isMainnet = block.chainid == 8453;
@@ -26,6 +27,7 @@ contract Deploy is Script {
         console2.log("  Foundation:", foundationWallet);
         console2.log("  Initial exchange rate:", initialExchangeRate);
         console2.log("  Redeem amount:", redeemAmount);
+        console2.log("  Anchor ETH premium bps:", anchorEthPremiumBps);
         console2.log("  EQTY fee:", eqtyFee);
 
         vm.startBroadcast(deployerPrivateKey);
@@ -45,7 +47,9 @@ contract Deploy is Script {
         }
 
         if (redeemContract == address(0)) {
-            Redeem redeem = new Redeem(eqtyToken, foundationWallet, initialExchangeRate, redeemAmount);
+            Redeem redeem = new Redeem(
+                eqtyToken, foundationWallet, initialExchangeRate, redeemAmount, anchorEthPremiumBps
+            );
             redeemContract = address(redeem);
 
             console2.log("Redeem deployed at:", redeemContract);

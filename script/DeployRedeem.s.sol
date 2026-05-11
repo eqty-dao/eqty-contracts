@@ -18,16 +18,20 @@ contract DeployRedeem is Script {
         address foundationWallet = vm.envAddress("FOUNDATION_WALLET");
         uint256 initialExchangeRate = vm.envUint("INITIAL_EXCHANGE_RATE");
         uint128 redeemAmount = uint128(vm.envUint("REDEEM_AMOUNT"));
+        uint16 anchorEthPremiumBps = uint16(vm.envUint("ANCHOR_ETH_PREMIUM_BPS"));
 
         console2.log("Deploying Redeem...");
         console2.log("  EQTY token:", eqtyToken);
         console2.log("  Foundation:", foundationWallet);
         console2.log("  Initial exchange rate:", initialExchangeRate);
         console2.log("  Redeem amount:", redeemAmount);
+        console2.log("  Anchor ETH premium bps:", anchorEthPremiumBps);
 
         vm.startBroadcast(deployerPrivateKey);
 
-        Redeem redeemContract = new Redeem(eqtyToken, foundationWallet, initialExchangeRate, redeemAmount);
+        Redeem redeemContract = new Redeem(
+            eqtyToken, foundationWallet, initialExchangeRate, redeemAmount, anchorEthPremiumBps
+        );
 
         vm.stopBroadcast();
 

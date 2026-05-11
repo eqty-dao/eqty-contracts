@@ -24,12 +24,21 @@ Dynamic exchange rate redemption of EQTY tokens for ETH.
 - 🎯 **Exact output** - If `ethOut` is available, the caller receives exactly `ethOut`
 - 📊 **Capped updates** - Max ±10% rate change per redeem
 - 🔥 **Deflationary** - EQTY is burned on every redeem
+- 💸 **Anchor fee quoting** - Converts EQTY-denominated anchor fees into ETH with a deployment-time premium
 
 ## How It Works
 
 ### 1. ETH Flows In
 
 Builders pay ETH via Anchor contract → ETH forwarded to Redeem
+
+When Anchor charges in ETH, it asks Redeem to quote the ETH price for the configured EQTY fee. The quote is:
+
+```math
+ethFee = (exchangeRate × eqtyFee / redeemAmount) × (1 + premium)
+```
+
+The premium is configured at deployment in basis points.
 
 ### 2. Redemption
 
@@ -67,7 +76,7 @@ redeemContract.redeem(0.1 ether);
 | Redeem payout below rate | Rate decreases (max -10%) | 0.01 → 0.009 |
 | Redeem payout equals rate | No change | 0.01 → 0.01 |
 
-The initial exchange rate and redeem amount are set in the constructor. After deployment, the exchange rate self-adjusts based on actual redemption activity.
+The initial exchange rate, redeem amount, and anchor ETH premium are set in the constructor. After deployment, the exchange rate self-adjusts based on actual redemption activity.
 
 ## Events
 

@@ -112,6 +112,8 @@ anchor.emitPublicEvent{value: fee}(subjectId, eventType, data);
 
 Behavior:
 - ETH is forwarded to `Redeem`
+- the ETH amount is quoted by `Redeem` from the configured EQTY fee
+- the quote is based on `exchangeRate`, `redeemAmount`, and the configured ETH premium
 - the caller must send enough ETH in the same call
 - native ETH has no allowance model
 

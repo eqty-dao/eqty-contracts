@@ -227,6 +227,7 @@ FOUNDATION_WALLET=      # Required: recipient configured in Redeem
 BRIDGE_WALLET=          # Required if Deploy.s.sol or DeployEQTY.s.sol should deploy EQTY
 INITIAL_EXCHANGE_RATE=  # Required: initial ETH per redeem amount
 REDEEM_AMOUNT=          # Required: EQTY burned on each redeem
+ANCHOR_ETH_PREMIUM_BPS= # Required: ETH premium over the EQTY-priced anchor fee
 MINT_DEADLINE=          # Optional: EQTY mint deadline when EQTY is deployed
 ```
 

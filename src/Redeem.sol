@@ -51,6 +51,9 @@ contract Redeem is ReentrancyGuard {
     /// @notice Fixed amount of EQTY burned per redeem
     uint128 public immutable redeemAmount;
 
+    /// @notice Premium applied when Anchor quotes ETH for EQTY-denominated fees
+    uint16 public immutable anchorEthPremiumBps;
+
     // ============ Storage ============
 
     /// @notice Exchange rate: ETH (in wei) per redeemAmount of EQTY
@@ -77,6 +80,7 @@ contract Redeem is ReentrancyGuard {
     error InvalidAddress();
     error InvalidExchangeRate();
     error InvalidRedeemAmount();
+    error InvalidAnchorEthPremium();
     error WithdrawalFailed();
     // ============ Constructor ============
 
@@ -86,17 +90,26 @@ contract Redeem is ReentrancyGuard {
      * @param _foundationWallet Foundation wallet associated with this deployment
      * @param _initialExchangeRate Initial exchange rate in wei per redeem amount
      * @param _redeemAmount Fixed EQTY amount burned on each redeem
+     * @param _anchorEthPremiumBps Premium charged on ETH anchor payments, in basis points
      */
-    constructor(address _eqtyToken, address _foundationWallet, uint256 _initialExchangeRate, uint128 _redeemAmount) {
+    constructor(
+        address _eqtyToken,
+        address _foundationWallet,
+        uint256 _initialExchangeRate,
+        uint128 _redeemAmount,
+        uint16 _anchorEthPremiumBps
+    ) {
         if (_eqtyToken == address(0)) revert InvalidAddress();
         if (_foundationWallet == address(0)) revert InvalidAddress();
         if (_initialExchangeRate == 0) revert InvalidExchangeRate();
         if (_redeemAmount == 0) revert InvalidRedeemAmount();
+        if (_anchorEthPremiumBps > 10_000) revert InvalidAnchorEthPremium();
 
         eqtyToken = IEQTY(_eqtyToken);
         foundationWallet = _foundationWallet;
         exchangeRate = _initialExchangeRate;
         redeemAmount = _redeemAmount;
+        anchorEthPremiumBps = _anchorEthPremiumBps;
     }
 
     // ============ External Functions ============
@@ -167,6 +180,17 @@ contract Redeem is ReentrancyGuard {
      */
     function previewRedeem() external view returns (uint256 ethOut, uint256 ethFee) {
         return (address(this).balance, 0);
+    }
+
+    /**
+     * @notice Quote the ETH required to pay an anchor fee denominated in EQTY
+     * @param eqtyAmount EQTY amount being priced
+     * @return ETH required in wei, including the configured premium
+     */
+    function quoteAnchorFee(uint256 eqtyAmount) external view returns (uint256) {
+        uint256 baseEthAmount = (exchangeRate * eqtyAmount) / redeemAmount;
+        uint256 premium = (baseEthAmount * anchorEthPremiumBps) / 10_000;
+        return baseEthAmount + premium;
     }
 
     // ============ Internal Functions ============

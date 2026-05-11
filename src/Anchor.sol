@@ -19,7 +19,7 @@ interface IEQTY is IERC20 {
  *      while maintaining full auditability through indexed events.
  *
  * Payment options:
- * - ETH: Sent to Redeem contract (price based on exchangeRate)
+ * - ETH: Sent to Redeem contract (price quoted from the EQTY fee)
  * - EQTY: Burned (deflationary, DAO-configurable amount)
  *
  * Canonical public events can also be emitted for subject-specific integrations.
@@ -77,7 +77,7 @@ contract Anchor is IAnchor, Ownable2Step {
      *      2. No ETH (msg.value == 0): EQTY burned from caller
      *
      * Requirements:
-     * - If paying with ETH: msg.value must cover the fee based on exchangeRate
+     * - If paying with ETH: msg.value must cover the fee quoted by Redeem for the current EQTY fee
      * - If paying with EQTY: Caller must have approved this contract to burn tokens
      *
      * Common usage patterns:
@@ -121,12 +121,12 @@ contract Anchor is IAnchor, Ownable2Step {
     }
 
     /**
-     * @notice Get the current ETH fee per anchor based on Redeem contract rate
+     * @notice Get the current ETH fee per anchor based on the EQTY fee quote from Redeem
      * @return ETH amount required per anchor
      */
     function getEthFee() external view returns (uint256) {
         if (address(redeemContract) == address(0)) return 0;
-        return redeemContract.exchangeRate();
+        return redeemContract.quoteAnchorFee(eqtyFee);
     }
 
     /**
@@ -136,7 +136,7 @@ contract Anchor is IAnchor, Ownable2Step {
      */
     function previewEthCost(uint256 numAnchors) external view returns (uint256) {
         if (address(redeemContract) == address(0)) return 0;
-        return redeemContract.exchangeRate() * numAnchors;
+        return redeemContract.quoteAnchorFee(eqtyFee * numAnchors);
     }
 
     // ============ Internal Functions ============
@@ -162,9 +162,8 @@ contract Anchor is IAnchor, Ownable2Step {
     function _handleEthPayment(uint256 count) internal {
         if (address(redeemContract) == address(0)) revert RedeemContractNotSet();
 
-        // Get current exchange rate from Redeem contract
-        uint256 exchangeRate = redeemContract.exchangeRate();
-        uint256 requiredEth = exchangeRate * count;
+        // Quote the ETH amount corresponding to the EQTY-denominated fee.
+        uint256 requiredEth = redeemContract.quoteAnchorFee(eqtyFee * count);
 
         if (msg.value < requiredEth) revert InsufficientETH();
 

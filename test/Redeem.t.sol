@@ -32,10 +32,13 @@ contract RedeemTest is Test {
 
     uint128 public constant REDEEM_AMOUNT = 10_000 ether;
     uint256 public constant INITIAL_EXCHANGE_RATE = 1 ether;
+    uint16 public constant ANCHOR_ETH_PREMIUM_BPS = 2000;
 
     function setUp() public {
         eqtyToken = new MockEQTY();
-        redeemContract = new Redeem(address(eqtyToken), foundation, INITIAL_EXCHANGE_RATE, REDEEM_AMOUNT);
+        redeemContract = new Redeem(
+            address(eqtyToken), foundation, INITIAL_EXCHANGE_RATE, REDEEM_AMOUNT, ANCHOR_ETH_PREMIUM_BPS
+        );
         eqtyToken.mint(alice, uint256(REDEEM_AMOUNT) * 10);
         vm.deal(address(redeemContract), 10 ether);
     }
@@ -44,28 +47,34 @@ contract RedeemTest is Test {
         assertEq(address(redeemContract.eqtyToken()), address(eqtyToken));
         assertEq(redeemContract.foundationWallet(), foundation);
         assertEq(redeemContract.redeemAmount(), REDEEM_AMOUNT);
+        assertEq(redeemContract.anchorEthPremiumBps(), ANCHOR_ETH_PREMIUM_BPS);
         assertEq(redeemContract.MAX_RATE_CHANGE_BPS(), 1000);
         assertEq(redeemContract.exchangeRate(), INITIAL_EXCHANGE_RATE);
     }
 
     function test_constructor_revertsOnZeroToken() public {
         vm.expectRevert(Redeem.InvalidAddress.selector);
-        new Redeem(address(0), foundation, INITIAL_EXCHANGE_RATE, REDEEM_AMOUNT);
+        new Redeem(address(0), foundation, INITIAL_EXCHANGE_RATE, REDEEM_AMOUNT, ANCHOR_ETH_PREMIUM_BPS);
     }
 
     function test_constructor_revertsOnZeroFoundation() public {
         vm.expectRevert(Redeem.InvalidAddress.selector);
-        new Redeem(address(eqtyToken), address(0), INITIAL_EXCHANGE_RATE, REDEEM_AMOUNT);
+        new Redeem(address(eqtyToken), address(0), INITIAL_EXCHANGE_RATE, REDEEM_AMOUNT, ANCHOR_ETH_PREMIUM_BPS);
     }
 
     function test_constructor_revertsOnZeroExchangeRate() public {
         vm.expectRevert(Redeem.InvalidExchangeRate.selector);
-        new Redeem(address(eqtyToken), foundation, 0, REDEEM_AMOUNT);
+        new Redeem(address(eqtyToken), foundation, 0, REDEEM_AMOUNT, ANCHOR_ETH_PREMIUM_BPS);
     }
 
     function test_constructor_revertsOnZeroRedeemAmount() public {
         vm.expectRevert(Redeem.InvalidRedeemAmount.selector);
-        new Redeem(address(eqtyToken), foundation, INITIAL_EXCHANGE_RATE, 0);
+        new Redeem(address(eqtyToken), foundation, INITIAL_EXCHANGE_RATE, 0, ANCHOR_ETH_PREMIUM_BPS);
+    }
+
+    function test_constructor_revertsOnInvalidAnchorEthPremium() public {
+        vm.expectRevert(Redeem.InvalidAnchorEthPremium.selector);
+        new Redeem(address(eqtyToken), foundation, INITIAL_EXCHANGE_RATE, REDEEM_AMOUNT, 10_001);
     }
 
     function test_receive_acceptsETH() public {
@@ -115,7 +124,9 @@ contract RedeemTest is Test {
     }
 
     function test_redeem_usesRequestedAmountWithInitialExchangeRate() public {
-        Redeem freshContract = new Redeem(address(eqtyToken), foundation, INITIAL_EXCHANGE_RATE, REDEEM_AMOUNT);
+        Redeem freshContract = new Redeem(
+            address(eqtyToken), foundation, INITIAL_EXCHANGE_RATE, REDEEM_AMOUNT, ANCHOR_ETH_PREMIUM_BPS
+        );
         vm.deal(address(freshContract), 10 ether);
 
         vm.startPrank(alice);
@@ -166,5 +177,13 @@ contract RedeemTest is Test {
         (uint256 ethOut, uint256 ethFee) = redeemContract.previewRedeem();
         assertEq(ethOut, 10 ether);
         assertEq(ethFee, 0);
+    }
+
+    function test_quoteAnchorFee_appliesPremium() public view {
+        uint256 eqtyAmount = 100 ether;
+        uint256 expectedBase = (INITIAL_EXCHANGE_RATE * eqtyAmount) / REDEEM_AMOUNT;
+        uint256 expectedPremium = (expectedBase * ANCHOR_ETH_PREMIUM_BPS) / 10_000;
+
+        assertEq(redeemContract.quoteAnchorFee(eqtyAmount), expectedBase + expectedPremium);
     }
 }
