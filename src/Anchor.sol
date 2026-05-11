@@ -19,7 +19,7 @@ interface IEQTY is IERC20 {
  *      while maintaining full auditability through indexed events.
  *
  * Payment options:
- * - ETH: Sent to Redeem contract (price based on currentRate)
+ * - ETH: Sent to Redeem contract (price based on exchangeRate)
  * - EQTY: Burned (deflationary, DAO-configurable amount)
  *
  * Canonical public events can also be emitted for subject-specific integrations.
@@ -77,7 +77,7 @@ contract Anchor is IAnchor, Ownable2Step {
      *      2. No ETH (msg.value == 0): EQTY burned from caller
      *
      * Requirements:
-     * - If paying with ETH: msg.value must cover the fee based on currentRate
+     * - If paying with ETH: msg.value must cover the fee based on exchangeRate
      * - If paying with EQTY: Caller must have approved this contract to burn tokens
      *
      * Common usage patterns:
@@ -126,7 +126,7 @@ contract Anchor is IAnchor, Ownable2Step {
      */
     function getEthFee() external view returns (uint256) {
         if (address(redeemContract) == address(0)) return 0;
-        return redeemContract.currentRate();
+        return redeemContract.exchangeRate();
     }
 
     /**
@@ -136,7 +136,7 @@ contract Anchor is IAnchor, Ownable2Step {
      */
     function previewEthCost(uint256 numAnchors) external view returns (uint256) {
         if (address(redeemContract) == address(0)) return 0;
-        return redeemContract.currentRate() * numAnchors;
+        return redeemContract.exchangeRate() * numAnchors;
     }
 
     // ============ Internal Functions ============
@@ -162,9 +162,9 @@ contract Anchor is IAnchor, Ownable2Step {
     function _handleEthPayment(uint256 count) internal {
         if (address(redeemContract) == address(0)) revert RedeemContractNotSet();
 
-        // Get current rate from Redeem contract
-        uint256 rate = redeemContract.currentRate();
-        uint256 requiredEth = rate * count;
+        // Get current exchange rate from Redeem contract
+        uint256 exchangeRate = redeemContract.exchangeRate();
+        uint256 requiredEth = exchangeRate * count;
 
         if (msg.value < requiredEth) revert InsufficientETH();
 

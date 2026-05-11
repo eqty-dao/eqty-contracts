@@ -47,7 +47,7 @@ graph LR
     A -->|EQTY| D[Burned]
     B -->|ETH forwarded| C[Redeem]
     C -->|rate| B
-    E[EQTY Holders] -->|10k EQTY| C
+    E[EQTY Holders] -->|redeemAmount EQTY| C
     C -->|ETH| E
     E -->|burned| D
 ```
@@ -64,7 +64,7 @@ r_next = r × clamp(p / r, 0.9, 1.1)
 
 | Term | Meaning |
 |------|---------|
-| `r` | Current rate (ETH per 10k EQTY) |
+| `r` | Current exchange rate (ETH per redeem amount) |
 | `p` | Actual ETH paid out |
 | `0.9, 1.1` | Max ±10% change per transaction |
 
@@ -74,7 +74,7 @@ r_next = r × clamp(p / r, 0.9, 1.1)
 - Less ETH in contract than rate → Rate decreases gradually
 - Rate naturally finds equilibrium based on protocol revenue
 
-**Initial rate** is set by owner at deployment, then the system self-adjusts.
+**Initial exchange rate** and **redeem amount** are set at deployment, then the system self-adjusts.
 
 ## Quick Start
 
@@ -103,7 +103,7 @@ forge build
 ### Test
 
 ```bash
-# Run all tests (89 tests)
+# Run all tests
 forge test
 
 # Verbose output
@@ -144,19 +144,10 @@ On Base Sepolia, `DeployRedeem` will deploy a new EQTY token when `EQTY_TOKEN_AD
 1. Post-deployment configuration:
 
 ```solidity
-// Set initial exchange rate on Redeem contract
-// Calculate based on: (EQTY price in USD) × 10,000 / (ETH price in USD)
-redeemContract.setCurrentRate(0.012 ether); // Example: ~$30 worth at $2500 ETH
-
 // Configure Anchor to point to Redeem
 anchorContract.setRedeemContract(redeemAddress);
 anchorContract.setEqtyToken(eqtyAddress);
 anchorContract.setEqtyFee(100 ether); // 100 EQTY per anchor (DAO-configurable)
-
-// Transfer ownership to DAO multisig
-redeemContract.transferOwnership(daoMultisig);
-anchorContract.transferOwnership(daoMultisig);
-// New owner must call acceptOwnership()
 ```
 
 ## Project Structure
@@ -172,7 +163,7 @@ eqty-contracts/
 │   └── interfaces/
 │       ├── IAnchor.sol     # Anchor interface
 │       └── IRedeem.sol     # Redeem interface
-├── test/                   # Foundry tests (89 tests)
+├── test/                   # Foundry tests
 │   ├── Anchor.t.sol
 │   ├── EQTY.t.sol
 │   └── Redeem.t.sol
@@ -203,17 +194,10 @@ eqty-contracts/
 
 ## DAO Configuration
 
-All contracts use `Ownable2Step` for secure ownership transfer to DAO.
-
 | Contract | Parameter | Description | Default |
 |----------|-----------|-------------|---------|
 | **Anchor** | `eqtyFee` | EQTY amount burned per anchor | 0 |
 | **Anchor** | `redeemContract` | Address to receive ETH payments | - |
-| **Redeem** | `currentRate` | ETH per 10k EQTY | Must be set |
-| **Redeem** | `maxRateChangeBps` | Max rate change per redeem | 1000 (10%) |
-| **Redeem** | `minRate` / `maxRate` | Safety bounds | 0 / max |
-| **Redeem** | `foundationEthFeeBps` | Foundation ETH fee | 0 |
-| **Redeem** | `redeemAmount` | EQTY required per redeem | 10,000 |
 
 ## Design Philosophy
 
@@ -223,7 +207,7 @@ All contracts use `Ownable2Step` for secure ownership transfer to DAO.
 | **Self-Correcting** | Rate adjusts automatically based on activity |
 | **Deflationary** | EQTY burned on both Anchor and Redeem |
 | **Real Yield** | ETH comes from actual protocol usage |
-| **DAO-Governed** | Owners can be transferred to multisig/DAO |
+| **Minimal Governance** | Only Anchor is owner-controlled |
 
 ## Environment Variables
 
@@ -240,7 +224,8 @@ REDEEM_CONTRACT_ADDRESS=
 
 # Configuration
 BRIDGE_WALLET=          # Required if DeployRedeem should deploy EQTY on testnet
-INITIAL_RATE=           # Optional: Override default rate
+INITIAL_EXCHANGE_RATE=  # Required: initial ETH per redeem amount
+REDEEM_AMOUNT=          # Required: EQTY burned on each redeem
 MINT_DEADLINE=          # Optional: EQTY mint deadline when deployed from DeployRedeem
 ```
 
@@ -260,14 +245,13 @@ All contracts are optimized for gas efficiency on Base L2:
 |----------|-------------------|
 | **Anchor** | `Ownable2Step`, custom errors, max 100 anchors per tx |
 | **EQTY** | Immutable bridge wallet, time-limited minting, 500M cap |
-| **Redeem** | `Ownable2Step`, `ReentrancyGuard`, `SafeERC20`, exact-output enforcement, rate bounds |
+| **Redeem** | `ReentrancyGuard`, exact-output enforcement |
 
 ### Trust Model
 
 - **No pause function** → Contracts cannot be stopped
 - **No admin mint** → Supply is capped
-- **Rate bounds** → Mathematical safety limits
-- **Two-step ownership** → Secure DAO transfer
+- **Anchor replacement** → Redeem changes require deploying a new contract and repointing Anchor
 
 ## License
 

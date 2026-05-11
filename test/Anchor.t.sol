@@ -379,11 +379,11 @@ contract AnchorTest is Test {
  * @notice Mock Redeem contract for testing ETH payments
  */
 contract MockRedeem {
-    uint256 public currentRate;
+    uint256 public exchangeRate;
     uint256 public receivedETH;
 
     constructor(uint256 _rate) {
-        currentRate = _rate;
+        exchangeRate = _rate;
     }
 
     receive() external payable {

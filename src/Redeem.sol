@@ -2,8 +2,6 @@
 pragma solidity ^0.8.28;
 
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
-import {Ownable2Step, Ownable} from "@openzeppelin/contracts/access/Ownable2Step.sol";
 import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 
 /**
@@ -27,55 +25,37 @@ interface IEQTY is IERC20 {
  * - Exchange rate updates gradually with capped changes per redeem
  * - Exact ETH-out redemption for a fixed EQTY input amount
  *
- * Rate Update Formula:
+ * Exchange Rate Update Formula:
  *   r_next = r * clamp(p / r, 1 - m, 1 + m)
  * Where:
- *   r = current rate, p = actual payout, m = max change percentage
+ *   r = current exchange rate, p = actual payout, m = max change percentage
  */
-contract Redeem is Ownable2Step, ReentrancyGuard {
-    using SafeERC20 for IERC20;
+contract Redeem is ReentrancyGuard {
 
     // ============ Constants ============
 
-    /// @notice Maximum foundation fee in basis points (100% = 10000 bps)
-    uint16 public constant MAX_FEE_BPS = 10_000;
-
     /// @notice Precision for rate calculations (1e18)
     uint256 public constant RATE_PRECISION = 1e18;
+
+    /// @notice Maximum rate change per redeem in basis points (10%)
+    uint16 public constant MAX_RATE_CHANGE_BPS = 1000;
 
     // ============ Immutables ============
 
     /// @notice EQTY token contract
     IEQTY public immutable eqtyToken;
 
-    // ============ Packed Storage (Slot 1) ============
+    /// @notice Foundation wallet configured at deployment
+    address public immutable foundationWallet;
 
-    /// @notice Amount of EQTY required to redeem (max ~340 undecillion with uint128)
-    uint128 public redeemAmount;
+    /// @notice Fixed amount of EQTY burned per redeem
+    uint128 public immutable redeemAmount;
 
-    /// @notice Foundation fee on ETH in basis points (max 10000)
-    uint16 public foundationEthFeeBps;
+    // ============ Storage ============
 
-    /// @notice Maximum rate change per redeem in basis points (e.g., 100 = 1%)
-    uint16 public maxRateChangeBps;
-
-    // ============ Storage (Slots 2-7) ============
-
-    /// @notice Address to receive foundation fees
-    address public foundationWallet;
-
-    /// @notice Current exchange rate: ETH (in wei) per redeemAmount of EQTY
+    /// @notice Exchange rate: ETH (in wei) per redeemAmount of EQTY
     /// @dev Stored with RATE_PRECISION for accuracy
-    uint256 public currentRate;
-
-    /// @notice Minimum allowed rate (floor safety)
-    uint256 public minRate;
-
-    /// @notice Maximum allowed rate (ceiling safety)
-    uint256 public maxRate;
-
-    /// @notice Accumulated ETH fees available for withdrawal
-    uint256 public pendingFoundationEth;
+    uint256 public exchangeRate;
 
     // ============ Events ============
 
@@ -87,49 +67,36 @@ contract Redeem is Ownable2Step, ReentrancyGuard {
         uint256 ethToFoundation,
         uint256 newRate
     );
-    event FoundationEthFeeUpdated(uint16 oldFeeBps, uint16 newFeeBps);
-    event FoundationWalletUpdated(address oldWallet, address newWallet);
-    event FoundationEthWithdrawn(address indexed to, uint256 amount);
-    event RedeemAmountUpdated(uint128 oldAmount, uint128 newAmount);
     event ETHReceived(address indexed from, uint256 amount);
-    event RateUpdated(uint256 oldRate, uint256 newRate);
-    event MaxRateChangeUpdated(uint16 oldBps, uint16 newBps);
-    event RateBoundsUpdated(uint256 oldMin, uint256 oldMax, uint256 newMin, uint256 newMax);
-
+    event ExchangeRateUpdated(uint256 oldExchangeRate, uint256 newExchangeRate);
     // ============ Errors ============
 
     error InsufficientETH();
     error InsufficientEQTYAllowance();
     error InsufficientEQTYBalance();
-    error FeeTooHigh();
-    error RedeemAmountTooLow();
     error InvalidAddress();
+    error InvalidExchangeRate();
+    error InvalidRedeemAmount();
     error WithdrawalFailed();
-    error NoFeesToWithdraw();
-    error InvalidRateBounds();
     // ============ Constructor ============
 
     /**
      * @notice Deploy the Redeem contract
      * @param _eqtyToken Address of the EQTY token contract
-     * @param _foundationWallet Address to receive foundation fees
+     * @param _foundationWallet Foundation wallet associated with this deployment
+     * @param _initialExchangeRate Initial exchange rate in wei per redeem amount
+     * @param _redeemAmount Fixed EQTY amount burned on each redeem
      */
-    constructor(address _eqtyToken, address _foundationWallet) Ownable(msg.sender) {
+    constructor(address _eqtyToken, address _foundationWallet, uint256 _initialExchangeRate, uint128 _redeemAmount) {
         if (_eqtyToken == address(0)) revert InvalidAddress();
         if (_foundationWallet == address(0)) revert InvalidAddress();
+        if (_initialExchangeRate == 0) revert InvalidExchangeRate();
+        if (_redeemAmount == 0) revert InvalidRedeemAmount();
 
         eqtyToken = IEQTY(_eqtyToken);
         foundationWallet = _foundationWallet;
-        foundationEthFeeBps = 0;
-        redeemAmount = 10_000 ether;
-        maxRateChangeBps = 1000; // 10% max change per redeem
-
-        // Rate bounds - DAO can adjust these
-        minRate = 0;
-        maxRate = type(uint256).max;
-
-        // Initial rate must be set by owner before first redeem
-        currentRate = 0;
+        exchangeRate = _initialExchangeRate;
+        redeemAmount = _redeemAmount;
     }
 
     // ============ External Functions ============
@@ -144,16 +111,14 @@ contract Redeem is Ownable2Step, ReentrancyGuard {
     /**
      * @notice Internal redeem implementation
      * @param ethOut Exact ETH expected after fees
-     * @dev Burns EQTY from caller (minus foundation fee) and sends ETH (minus foundation fee)
-      *      Updates exchange rate using capped percentage formula
+     * @dev Burns EQTY from caller and sends exact ETH out
+     *      Updates exchange rate using capped percentage formula
      */
     function _redeem(uint256 ethOut) internal {
-        uint256 ethBalance = address(this).balance - pendingFoundationEth;
+        uint256 ethBalance = address(this).balance;
 
         // Cache storage reads
         uint256 amount = redeemAmount;
-        uint256 ethFeeBps = foundationEthFeeBps;
-        uint256 rate = currentRate;
 
         // Check allowance and balance
         if (eqtyToken.allowance(msg.sender, address(this)) < amount) {
@@ -163,35 +128,25 @@ contract Redeem is Ownable2Step, ReentrancyGuard {
             revert InsufficientEQTYBalance();
         }
 
-        uint256 ethFee = (ethOut * ethFeeBps) / 10_000;
-        uint256 ethPayout = ethOut + ethFee;
+        uint256 ethPayout = ethOut;
         if (ethPayout > ethBalance) revert InsufficientETH();
 
         uint256 eqtyToBurn = amount;
+        uint256 newExchangeRate = _updateExchangeRate(ethPayout);
 
-        // Update exchange rate using capped percentage formula
-        // r_next = r * clamp(p / r, 1 - m, 1 + m)
-        uint256 newRate = _calculateNewRate(rate, ethPayout);
-        currentRate = newRate;
-
-        // Accumulate foundation fees
-        pendingFoundationEth += ethFee;
         eqtyToken.burnFrom(msg.sender, eqtyToBurn);
 
         // Send ETH to redeemer
         (bool success,) = msg.sender.call{value: ethOut}("");
         if (!success) revert WithdrawalFailed();
 
-        emit Redeemed(msg.sender, eqtyToBurn, 0, ethOut, ethFee, newRate);
-        if (newRate != rate) {
-            emit RateUpdated(rate, newRate);
-        }
+        emit Redeemed(msg.sender, eqtyToBurn, 0, ethOut, 0, newExchangeRate);
     }
 
     /**
      * @notice Redeem a fixed EQTY amount for an exact ETH output
      * @param ethOut Exact ETH expected after fees
-     * @dev Burns EQTY from caller (minus foundation fee) and sends ETH (minus foundation fee)
+     * @dev Burns EQTY from caller and sends exact ETH out
      *      Updates exchange rate using capped percentage formula
      */
     function redeem(uint256 ethOut) external nonReentrant {
@@ -202,7 +157,7 @@ contract Redeem is Ownable2Step, ReentrancyGuard {
      * @notice Get the amount of ETH available for redemption
      */
     function availableEth() external view returns (uint256) {
-        return address(this).balance - pendingFoundationEth;
+        return address(this).balance;
     }
 
     /**
@@ -211,35 +166,42 @@ contract Redeem is Ownable2Step, ReentrancyGuard {
      * @return ethFee ETH fee to foundation
      */
     function previewRedeem() external view returns (uint256 ethOut, uint256 ethFee) {
-        uint256 ethBalance = address(this).balance - pendingFoundationEth;
-        uint256 ethFeeBps = foundationEthFeeBps;
-
-        if (ethFeeBps == 0) {
-            return (ethBalance, 0);
-        }
-
-        ethOut = (ethBalance * 10_000) / (10_000 + ethFeeBps);
-        ethFee = (ethOut * ethFeeBps) / 10_000;
+        return (address(this).balance, 0);
     }
 
     // ============ Internal Functions ============
 
     /**
-     * @notice Calculate new rate using capped percentage update
-     * @param oldRate Current rate
-     * @param actualPayout Actual ETH paid out
-     * @return newRate Updated rate (clamped within bounds)
+     * @notice Update the exchange rate after a redeem
+     * @param actualPayout Gross ETH paid out for the redeem including foundation fee
+     * @return newExchangeRate Updated exchange rate
      */
-    function _calculateNewRate(uint256 oldRate, uint256 actualPayout) internal view returns (uint256 newRate) {
-        if (oldRate == 0) return actualPayout;
+    function _updateExchangeRate(uint256 actualPayout) private returns (uint256 newExchangeRate) {
+        uint256 oldExchangeRate = exchangeRate;
+        newExchangeRate = _calculateNewExchangeRate(oldExchangeRate, actualPayout);
+        exchangeRate = newExchangeRate;
 
-        // Calculate ratio: actualPayout / oldRate
+        if (newExchangeRate != oldExchangeRate) {
+            emit ExchangeRateUpdated(oldExchangeRate, newExchangeRate);
+        }
+    }
+
+    /**
+     * @notice Calculate new exchange rate using capped percentage update
+     * @param oldExchangeRate Current exchange rate
+     * @param actualPayout Actual ETH paid out
+     * @return newExchangeRate Updated exchange rate
+     */
+    function _calculateNewExchangeRate(uint256 oldExchangeRate, uint256 actualPayout) internal pure returns (uint256 newExchangeRate) {
+        if (oldExchangeRate == 0) return actualPayout;
+
+        // Calculate ratio: actualPayout / oldExchangeRate
         // Using RATE_PRECISION for accuracy
-        uint256 ratio = (actualPayout * RATE_PRECISION) / oldRate;
+        uint256 ratio = (actualPayout * RATE_PRECISION) / oldExchangeRate;
 
-        // Calculate bounds: 1 ± maxRateChangeBps
-        uint256 lowerBound = RATE_PRECISION - (RATE_PRECISION * maxRateChangeBps / 10_000);
-        uint256 upperBound = RATE_PRECISION + (RATE_PRECISION * maxRateChangeBps / 10_000);
+        // Calculate bounds: 1 ± 10%
+        uint256 lowerBound = RATE_PRECISION - (RATE_PRECISION * MAX_RATE_CHANGE_BPS / 10_000);
+        uint256 upperBound = RATE_PRECISION + (RATE_PRECISION * MAX_RATE_CHANGE_BPS / 10_000);
 
         // Clamp ratio to bounds
         if (ratio < lowerBound) {
@@ -248,110 +210,8 @@ contract Redeem is Ownable2Step, ReentrancyGuard {
             ratio = upperBound;
         }
 
-        // newRate = oldRate * clampedRatio
-        newRate = (oldRate * ratio) / RATE_PRECISION;
+        // newExchangeRate = oldExchangeRate * clampedRatio
+        newExchangeRate = (oldExchangeRate * ratio) / RATE_PRECISION;
 
-        // Apply floor and ceiling bounds
-        if (newRate < minRate) {
-            newRate = minRate;
-        } else if (newRate > maxRate) {
-            newRate = maxRate;
-        }
     }
-
-    // ============ Admin Functions ============
-
-    /**
-     * @notice Set the initial exchange rate
-     * @param _rate Rate in wei (ETH per redeemAmount of EQTY)
-     * @dev Can be called anytime by owner to adjust rate
-     */
-    function setCurrentRate(uint256 _rate) external onlyOwner {
-        uint256 oldRate = currentRate;
-        currentRate = _rate;
-        emit RateUpdated(oldRate, _rate);
-    }
-
-    /**
-     * @notice Update the maximum rate change per redeem
-     * @param _newBps New max change in basis points (e.g., 100 = 1%)
-     */
-    function setMaxRateChange(uint16 _newBps) external onlyOwner {
-        if (_newBps > MAX_FEE_BPS) revert FeeTooHigh();
-
-        uint16 oldBps = maxRateChangeBps;
-        maxRateChangeBps = _newBps;
-
-        emit MaxRateChangeUpdated(oldBps, _newBps);
-    }
-
-    /**
-     * @notice Update the rate floor and ceiling bounds
-     * @param _minRate Minimum allowed rate (can be 0)
-     * @param _maxRate Maximum allowed rate
-     */
-    function setRateBounds(uint256 _minRate, uint256 _maxRate) external onlyOwner {
-        if (_minRate > _maxRate) revert InvalidRateBounds();
-
-        uint256 oldMin = minRate;
-        uint256 oldMax = maxRate;
-        minRate = _minRate;
-        maxRate = _maxRate;
-
-        emit RateBoundsUpdated(oldMin, oldMax, _minRate, _maxRate);
-    }
-
-    /**
-     * @notice Update the foundation ETH fee percentage
-     * @param _newFeeBps New fee in basis points (max 10000 = 100%)
-     */
-    function setFoundationEthFee(uint16 _newFeeBps) external onlyOwner {
-        if (_newFeeBps > MAX_FEE_BPS) revert FeeTooHigh();
-
-        uint16 oldFee = foundationEthFeeBps;
-        foundationEthFeeBps = _newFeeBps;
-
-        emit FoundationEthFeeUpdated(oldFee, _newFeeBps);
-    }
-
-    /**
-     * @notice Update the redeem amount
-     * @param _newAmount New amount of EQTY required (minimum 1 wei)
-     */
-    function setRedeemAmount(uint128 _newAmount) external onlyOwner {
-        if (_newAmount == 0) revert RedeemAmountTooLow();
-
-        uint128 oldAmount = redeemAmount;
-        redeemAmount = _newAmount;
-
-        emit RedeemAmountUpdated(oldAmount, _newAmount);
-    }
-
-    /**
-     * @notice Update the foundation wallet address
-     */
-    function setFoundationWallet(address _newWallet) external onlyOwner {
-        if (_newWallet == address(0)) revert InvalidAddress();
-
-        address oldWallet = foundationWallet;
-        foundationWallet = _newWallet;
-
-        emit FoundationWalletUpdated(oldWallet, _newWallet);
-    }
-
-    /**
-     * @notice Withdraw accumulated foundation ETH fees
-     */
-    function withdrawFoundationEth() external {
-        uint256 amount = pendingFoundationEth;
-        if (amount == 0) revert NoFeesToWithdraw();
-
-        pendingFoundationEth = 0;
-
-        (bool success,) = foundationWallet.call{value: amount}("");
-        if (!success) revert WithdrawalFailed();
-
-        emit FoundationEthWithdrawn(foundationWallet, amount);
-    }
-
 }

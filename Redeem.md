@@ -13,7 +13,7 @@ Dynamic exchange rate redemption of EQTY tokens for ETH.
         ┌────────────────────┼────────────────────┐
         │                    │                    │
         ▼                    ▼                    ▼
-   ETH In (Anchor)      currentRate         ETH Out (Holders)
+   ETH In (Anchor)     exchangeRate        ETH Out (Holders)
    ────────────►         Self-adjusts       ◄────────────
                            ±10% max
 ```
@@ -33,11 +33,10 @@ Builders pay ETH via Anchor contract → ETH forwarded to Redeem
 
 ### 2. Redemption
 
-EQTY holders burn 10,000 EQTY and request a net ETH amount.
+EQTY holders burn the constructor-configured `redeemAmount` and request an exact ETH amount.
 
 - If enough ETH is available, the contract pays exactly `ethOut`
 - If not enough ETH is available, the transaction reverts
-- Any configured foundation ETH fee is reserved on top of `ethOut`
 
 ### 3. Rate Self-Adjusts
 
@@ -54,7 +53,7 @@ r_next = r × clamp(p / r, 0.9, 1.1)
 (uint256 maxEthOut, uint256 ethFee) = redeemContract.previewRedeem();
 
 // 2. Approve EQTY spending
-eqtyToken.approve(address(redeemContract), 10_000 ether);
+eqtyToken.approve(address(redeemContract), redeemContract.redeemAmount());
 
 // 3. Redeem for an exact net ETH output up to the available amount
 redeemContract.redeem(0.1 ether);
@@ -68,21 +67,7 @@ redeemContract.redeem(0.1 ether);
 | Redeem payout below rate | Rate decreases (max -10%) | 0.01 → 0.009 |
 | Redeem payout equals rate | No change | 0.01 → 0.01 |
 
-**Initial Rate:**
-Owner can set an initial reference point for the first rate update. It does not limit what a user can redeem.
-
-After deployment, the rate self-adjusts based on actual redemption activity.
-
-## Owner Functions (DAO)
-
-| Function | Description | Default |
-|----------|-------------|---------|
-| `setCurrentRate(uint256)` | Set/override exchange rate | Must be set initially |
-| `setMaxRateChange(uint16)` | Max change per redeem (bps) | 1000 (10%) |
-| `setRateBounds(min, max)` | Floor/ceiling safety | 0 / max |
-| `setRedeemAmount(uint128)` | EQTY required per redeem | 10,000 |
-| `setFoundationEthFee(uint16)` | ETH fee in bps | 0 |
-| `setFoundationWallet(address)` | Fee recipient | Treasury |
+The initial exchange rate and redeem amount are set in the constructor. After deployment, the exchange rate self-adjusts based on actual redemption activity.
 
 ## Events
 
@@ -90,10 +75,7 @@ After deployment, the rate self-adjusts based on actual redemption activity.
 |-------|--------------|
 | `Redeemed(user, eqtyBurned, eqtyFee, ethReceived, ethFee, newRate)` | Successful redeem |
 | `ETHReceived(from, amount)` | Contract receives ETH |
-| `RateUpdated(oldRate, newRate)` | Rate changed |
-| `MaxRateChangeUpdated(oldBps, newBps)` | Max change updated |
-| `RateBoundsUpdated(oldMin, oldMax, newMin, newMax)` | Bounds updated |
-| `FoundationEthFeeUpdated(oldFee, newFee)` | ETH fee changed |
+| `ExchangeRateUpdated(oldExchangeRate, newExchangeRate)` | Exchange rate changed |
 
 ## Errors
 
@@ -101,17 +83,14 @@ After deployment, the rate self-adjusts based on actual redemption activity.
 |-------|-------|----------|
 | `InsufficientETH()` | Not enough ETH is available for the requested redeem | Lower `ethOut` or wait for more ETH |
 | `InsufficientEQTYAllowance()` | User hasn't approved | Call `eqtyToken.approve()` |
-| `InsufficientEQTYBalance()` | Not enough EQTY | Need 10,000 EQTY (default) |
+| `InsufficientEQTYBalance()` | Not enough EQTY | Need at least `redeemAmount()` EQTY |
 
 ## Security Design
 
 | Feature | Purpose |
 |---------|---------|
 | **ReentrancyGuard** | Prevents reentrancy attacks |
-| **Ownable2Step** | Two-step ownership transfer (secure DAO handoff) |
-| **SafeERC20** | Safe token transfers |
 | **Exact output enforcement** | Requested ETH is paid exactly or the transaction reverts |
-| **Rate bounds** | `minRate`/`maxRate` prevent extreme values |
 | **CEI Pattern** | Checks-Effects-Interactions ordering |
 | **No pause function** | Trustless - cannot be stopped |
 
@@ -141,10 +120,7 @@ forge script script/DeployRedeem.s.sol:DeployRedeem \
 
 **Post-Deployment Checklist:**
 
-1. ✅ Optional: set an initial rate reference with `setCurrentRate(rate)`
-2. ✅ Configure Anchor: `anchor.setRedeemContract(redeemAddress)`
-3. ✅ Transfer to DAO: `transferOwnership(daoMultisig)`
-4. ✅ DAO accepts: `acceptOwnership()`
+1. ✅ Configure Anchor: `anchor.setRedeemContract(redeemAddress)`
 
 ## Related Contracts
 
