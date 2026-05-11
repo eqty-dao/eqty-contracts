@@ -4,7 +4,7 @@ pragma solidity ^0.8.28;
 /**
  * @title IRedeem
  * @notice Interface for the Redeem contract
- * @dev Allows EQTY holders to redeem tokens for ETH at a dynamic exchange rate
+ * @dev Allows EQTY holders to redeem tokens for ETH while tracking a dynamic exchange rate
  */
 interface IRedeem {
     // ============ View Functions ============
@@ -23,7 +23,7 @@ interface IRedeem {
 
     /**
      * @notice Calculate expected ETH output for a redeem
-     * @return ethOut Expected ETH after fees
+     * @return ethOut Maximum redeemable ETH after fees
      * @return ethFee ETH fee to foundation
      */
     function previewRedeem() external view returns (uint256 ethOut, uint256 ethFee);
@@ -95,8 +95,6 @@ interface IRedeem {
     // ============ Errors ============
 
     error InsufficientETH();
-    error UnexpectedEthOut();
     error InsufficientEQTYAllowance();
     error InsufficientEQTYBalance();
-    error RateNotSet();
 }

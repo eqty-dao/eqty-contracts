@@ -20,10 +20,10 @@ Dynamic exchange rate redemption of EQTY tokens for ETH.
 
 **Key Features:**
 
-- 🔄 **Dynamic rate** - Adjusts gradually based on redemptions
-- 🎯 **Exact output** - Redeem succeeds only when the requested net ETH matches current output
+- 🔄 **Dynamic rate** - Adjusts gradually based on actual redemptions
+- 🎯 **Exact output** - If `ethOut` is available, the caller receives exactly `ethOut`
 - 📊 **Capped updates** - Max ±10% rate change per redeem
-- 🔥 **Deflationary** - EQTY burned with optional foundation fee
+- 🔥 **Deflationary** - EQTY is burned on every redeem
 
 ## How It Works
 
@@ -31,49 +31,47 @@ Dynamic exchange rate redemption of EQTY tokens for ETH.
 
 Builders pay ETH via Anchor contract → ETH forwarded to Redeem
 
-### 2. Rate Self-Adjusts
+### 2. Redemption
 
-Every redeem updates the rate using a capped formula:
+EQTY holders burn 10,000 EQTY and request a net ETH amount.
+
+- If enough ETH is available, the contract pays exactly `ethOut`
+- If not enough ETH is available, the transaction reverts
+- Any configured foundation ETH fee is reserved on top of `ethOut`
+
+### 3. Rate Self-Adjusts
+
+After a successful redeem, the rate updates using a capped formula based on the actual redeem payout:
 
 ```math
 r_next = r × clamp(p / r, 0.9, 1.1)
 ```
 
-### 3. Holders Redeem
-
-EQTY holders burn 10,000 EQTY → Receive ETH at current rate
-
 ## Usage
 
 ```solidity
-// 1. Check expected output first
-(uint256 ethOut, uint256 ethFee) = redeemContract.previewRedeem();
+// 1. Check the maximum redeemable amount first
+(uint256 maxEthOut, uint256 ethFee) = redeemContract.previewRedeem();
 
 // 2. Approve EQTY spending
 eqtyToken.approve(address(redeemContract), 10_000 ether);
 
-// 3. Redeem for the exact previewed ETH output
-redeemContract.redeem(ethOut);
+// 3. Redeem for an exact net ETH output up to the available amount
+redeemContract.redeem(0.1 ether);
 ```
 
 ## Exchange Rate Mechanism
 
 | Scenario | What Happens | Example |
 |----------|--------------|---------|
-| More ETH than rate | Rate increases (max +10%) | 0.01 → 0.011 |
-| Less ETH than rate | Rate decreases (max -10%) | 0.01 → 0.009 |
-| ETH equals rate | No change | 0.01 → 0.01 |
+| Redeem payout above rate | Rate increases (max +10%) | 0.01 → 0.011 |
+| Redeem payout below rate | Rate decreases (max -10%) | 0.01 → 0.009 |
+| Redeem payout equals rate | No change | 0.01 → 0.01 |
 
 **Initial Rate:**
-Owner sets at deployment. Calculate as:
+Owner can set an initial reference point for the first rate update. It does not limit what a user can redeem.
 
-```
-rate = (EQTY_price × 10,000) / ETH_price
-     = ($0.003 × 10,000) / $2,500
-     = 0.012 ETH
-```
-
-After deployment, the rate self-adjusts based on actual activity.
+After deployment, the rate self-adjusts based on actual redemption activity.
 
 ## Owner Functions (DAO)
 
@@ -84,7 +82,6 @@ After deployment, the rate self-adjusts based on actual activity.
 | `setRateBounds(min, max)` | Floor/ceiling safety | 0 / max |
 | `setRedeemAmount(uint128)` | EQTY required per redeem | 10,000 |
 | `setFoundationEthFee(uint16)` | ETH fee in bps | 0 |
-| `setFoundationEqtyFee(uint16)` | EQTY fee in bps | 0 |
 | `setFoundationWallet(address)` | Fee recipient | Treasury |
 
 ## Events
@@ -97,15 +94,12 @@ After deployment, the rate self-adjusts based on actual activity.
 | `MaxRateChangeUpdated(oldBps, newBps)` | Max change updated |
 | `RateBoundsUpdated(oldMin, oldMax, newMin, newMax)` | Bounds updated |
 | `FoundationEthFeeUpdated(oldFee, newFee)` | ETH fee changed |
-| `FoundationEqtyFeeUpdated(oldFee, newFee)` | EQTY fee changed |
 
 ## Errors
 
 | Error | Cause | Solution |
 |-------|-------|----------|
-| `RateNotSet()` | currentRate is 0 | Owner must call `setCurrentRate()` |
-| `InsufficientETH()` | No ETH in contract | Wait for more ETH or check `availableEth()` |
-| `UnexpectedEthOut()` | Requested ETH does not match current net redeem output | Call `previewRedeem()` again and retry |
+| `InsufficientETH()` | Not enough ETH is available for the requested redeem | Lower `ethOut` or wait for more ETH |
 | `InsufficientEQTYAllowance()` | User hasn't approved | Call `eqtyToken.approve()` |
 | `InsufficientEQTYBalance()` | Not enough EQTY | Need 10,000 EQTY (default) |
 
@@ -116,7 +110,7 @@ After deployment, the rate self-adjusts based on actual activity.
 | **ReentrancyGuard** | Prevents reentrancy attacks |
 | **Ownable2Step** | Two-step ownership transfer (secure DAO handoff) |
 | **SafeERC20** | Safe token transfers |
-| **Exact output enforcement** | Requested ETH must match current net redeem output |
+| **Exact output enforcement** | Requested ETH is paid exactly or the transaction reverts |
 | **Rate bounds** | `minRate`/`maxRate` prevent extreme values |
 | **CEI Pattern** | Checks-Effects-Interactions ordering |
 | **No pause function** | Trustless - cannot be stopped |
@@ -147,7 +141,7 @@ forge script script/DeployRedeem.s.sol:DeployRedeem \
 
 **Post-Deployment Checklist:**
 
-1. ✅ Set initial rate: `setCurrentRate(calculatedRate)`
+1. ✅ Optional: set an initial rate reference with `setCurrentRate(rate)`
 2. ✅ Configure Anchor: `anchor.setRedeemContract(redeemAddress)`
 3. ✅ Transfer to DAO: `transferOwnership(daoMultisig)`
 4. ✅ DAO accepts: `acceptOwnership()`

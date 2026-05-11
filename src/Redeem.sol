@@ -22,8 +22,8 @@ interface IEQTY is IERC20 {
  *
  * Key mechanics:
  * - Receive ETH from Ownables/Anchor fee payments
- * - Anyone can send EQTY to receive ETH based on current rate
- * - EQTY is burned (deflationary) with optional foundation fee
+ * - Anyone can send EQTY to receive an exact ETH output when enough ETH is available
+ * - EQTY is burned (deflationary)
  * - Exchange rate updates gradually with capped changes per redeem
  * - Exact ETH-out redemption for a fixed EQTY input amount
  *
@@ -56,9 +56,6 @@ contract Redeem is Ownable2Step, ReentrancyGuard {
     /// @notice Foundation fee on ETH in basis points (max 10000)
     uint16 public foundationEthFeeBps;
 
-    /// @notice Foundation fee on EQTY in basis points (max 10000)
-    uint16 public foundationEqtyFeeBps;
-
     /// @notice Maximum rate change per redeem in basis points (e.g., 100 = 1%)
     uint16 public maxRateChangeBps;
 
@@ -80,9 +77,6 @@ contract Redeem is Ownable2Step, ReentrancyGuard {
     /// @notice Accumulated ETH fees available for withdrawal
     uint256 public pendingFoundationEth;
 
-    /// @notice Accumulated EQTY fees available for withdrawal
-    uint256 public pendingFoundationEqty;
-
     // ============ Events ============
 
     event Redeemed(
@@ -94,10 +88,8 @@ contract Redeem is Ownable2Step, ReentrancyGuard {
         uint256 newRate
     );
     event FoundationEthFeeUpdated(uint16 oldFeeBps, uint16 newFeeBps);
-    event FoundationEqtyFeeUpdated(uint16 oldFeeBps, uint16 newFeeBps);
     event FoundationWalletUpdated(address oldWallet, address newWallet);
     event FoundationEthWithdrawn(address indexed to, uint256 amount);
-    event FoundationEqtyWithdrawn(address indexed to, uint256 amount);
     event RedeemAmountUpdated(uint128 oldAmount, uint128 newAmount);
     event ETHReceived(address indexed from, uint256 amount);
     event RateUpdated(uint256 oldRate, uint256 newRate);
@@ -107,7 +99,6 @@ contract Redeem is Ownable2Step, ReentrancyGuard {
     // ============ Errors ============
 
     error InsufficientETH();
-    error UnexpectedEthOut();
     error InsufficientEQTYAllowance();
     error InsufficientEQTYBalance();
     error FeeTooHigh();
@@ -116,8 +107,6 @@ contract Redeem is Ownable2Step, ReentrancyGuard {
     error WithdrawalFailed();
     error NoFeesToWithdraw();
     error InvalidRateBounds();
-    error RateNotSet();
-
     // ============ Constructor ============
 
     /**
@@ -132,7 +121,6 @@ contract Redeem is Ownable2Step, ReentrancyGuard {
         eqtyToken = IEQTY(_eqtyToken);
         foundationWallet = _foundationWallet;
         foundationEthFeeBps = 0;
-        foundationEqtyFeeBps = 0;
         redeemAmount = 10_000 ether;
         maxRateChangeBps = 1000; // 10% max change per redeem
 
@@ -157,18 +145,14 @@ contract Redeem is Ownable2Step, ReentrancyGuard {
      * @notice Internal redeem implementation
      * @param ethOut Exact ETH expected after fees
      * @dev Burns EQTY from caller (minus foundation fee) and sends ETH (minus foundation fee)
-     *      Updates exchange rate using capped percentage formula
+      *      Updates exchange rate using capped percentage formula
      */
     function _redeem(uint256 ethOut) internal {
-        if (currentRate == 0) revert RateNotSet();
-
         uint256 ethBalance = address(this).balance - pendingFoundationEth;
-        if (ethBalance == 0) revert InsufficientETH();
 
         // Cache storage reads
         uint256 amount = redeemAmount;
         uint256 ethFeeBps = foundationEthFeeBps;
-        uint256 eqtyFeeBps = foundationEqtyFeeBps;
         uint256 rate = currentRate;
 
         // Check allowance and balance
@@ -179,28 +163,11 @@ contract Redeem is Ownable2Step, ReentrancyGuard {
             revert InsufficientEQTYBalance();
         }
 
-        // Calculate ETH payout based on current rate
-        // rate is ETH per redeemAmount, so ethPayout = rate
-        // But cap at available balance
-        uint256 ethPayout = rate;
-        if (ethPayout > ethBalance) {
-            ethPayout = ethBalance;
-        }
+        uint256 ethFee = (ethOut * ethFeeBps) / 10_000;
+        uint256 ethPayout = ethOut + ethFee;
+        if (ethPayout > ethBalance) revert InsufficientETH();
 
-        // Calculate fees using unchecked for gas savings (overflow impossible with uint16 fees)
-        uint256 ethFee;
-        uint256 ethToSend;
-        uint256 eqtyFee;
-        uint256 eqtyToBurn;
-
-        unchecked {
-            ethFee = (ethPayout * ethFeeBps) / 10_000;
-            ethToSend = ethPayout - ethFee;
-            eqtyFee = (amount * eqtyFeeBps) / 10_000;
-            eqtyToBurn = amount - eqtyFee;
-        }
-
-        if (ethToSend != ethOut) revert UnexpectedEthOut();
+        uint256 eqtyToBurn = amount;
 
         // Update exchange rate using capped percentage formula
         // r_next = r * clamp(p / r, 1 - m, 1 + m)
@@ -209,19 +176,13 @@ contract Redeem is Ownable2Step, ReentrancyGuard {
 
         // Accumulate foundation fees
         pendingFoundationEth += ethFee;
-        pendingFoundationEqty += eqtyFee;
-
-        // Transfer EQTY from user
-        if (eqtyFee > 0) {
-            IERC20(address(eqtyToken)).safeTransferFrom(msg.sender, address(this), eqtyFee);
-        }
         eqtyToken.burnFrom(msg.sender, eqtyToBurn);
 
         // Send ETH to redeemer
-        (bool success,) = msg.sender.call{value: ethToSend}("");
+        (bool success,) = msg.sender.call{value: ethOut}("");
         if (!success) revert WithdrawalFailed();
 
-        emit Redeemed(msg.sender, eqtyToBurn, eqtyFee, ethToSend, ethFee, newRate);
+        emit Redeemed(msg.sender, eqtyToBurn, 0, ethOut, ethFee, newRate);
         if (newRate != rate) {
             emit RateUpdated(rate, newRate);
         }
@@ -246,20 +207,19 @@ contract Redeem is Ownable2Step, ReentrancyGuard {
 
     /**
      * @notice Calculate expected ETH output for a redeem
-     * @return ethOut Expected ETH after fees
+     * @return ethOut Maximum redeemable ETH after fees
      * @return ethFee ETH fee to foundation
      */
     function previewRedeem() external view returns (uint256 ethOut, uint256 ethFee) {
         uint256 ethBalance = address(this).balance - pendingFoundationEth;
-        uint256 rate = currentRate;
+        uint256 ethFeeBps = foundationEthFeeBps;
 
-        uint256 ethPayout = rate;
-        if (ethPayout > ethBalance) {
-            ethPayout = ethBalance;
+        if (ethFeeBps == 0) {
+            return (ethBalance, 0);
         }
 
-        ethFee = (ethPayout * foundationEthFeeBps) / 10_000;
-        ethOut = ethPayout - ethFee;
+        ethOut = (ethBalance * 10_000) / (10_000 + ethFeeBps);
+        ethFee = (ethOut * ethFeeBps) / 10_000;
     }
 
     // ============ Internal Functions ============
@@ -355,19 +315,6 @@ contract Redeem is Ownable2Step, ReentrancyGuard {
     }
 
     /**
-     * @notice Update the foundation EQTY fee percentage
-     * @param _newFeeBps New fee in basis points (max 10000 = 100%)
-     */
-    function setFoundationEqtyFee(uint16 _newFeeBps) external onlyOwner {
-        if (_newFeeBps > MAX_FEE_BPS) revert FeeTooHigh();
-
-        uint16 oldFee = foundationEqtyFeeBps;
-        foundationEqtyFeeBps = _newFeeBps;
-
-        emit FoundationEqtyFeeUpdated(oldFee, _newFeeBps);
-    }
-
-    /**
      * @notice Update the redeem amount
      * @param _newAmount New amount of EQTY required (minimum 1 wei)
      */
@@ -407,17 +354,4 @@ contract Redeem is Ownable2Step, ReentrancyGuard {
         emit FoundationEthWithdrawn(foundationWallet, amount);
     }
 
-    /**
-     * @notice Withdraw accumulated foundation EQTY fees
-     */
-    function withdrawFoundationEqty() external {
-        uint256 amount = pendingFoundationEqty;
-        if (amount == 0) revert NoFeesToWithdraw();
-
-        pendingFoundationEqty = 0;
-
-        IERC20(address(eqtyToken)).safeTransfer(foundationWallet, amount);
-
-        emit FoundationEqtyWithdrawn(foundationWallet, amount);
-    }
 }

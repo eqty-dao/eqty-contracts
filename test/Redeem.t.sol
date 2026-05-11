@@ -54,7 +54,6 @@ contract RedeemTest is Test {
         assertEq(redeemContract.foundationWallet(), foundation);
         assertEq(redeemContract.owner(), address(this));
         assertEq(redeemContract.foundationEthFeeBps(), 0);
-        assertEq(redeemContract.foundationEqtyFeeBps(), 0);
         assertEq(redeemContract.redeemAmount(), REDEEM_AMOUNT);
         assertEq(redeemContract.maxRateChangeBps(), 1000); // Default 10%
     }
@@ -89,13 +88,11 @@ contract RedeemTest is Test {
         uint256 ethBefore = alice.balance;
         uint256 eqtyBefore = eqtyToken.balanceOf(alice);
 
-        redeemContract.redeem(INITIAL_RATE);
+        redeemContract.redeem(0.1 ether);
 
-        // Should receive rate amount (1 ETH) not all ETH
-        assertEq(alice.balance, ethBefore + INITIAL_RATE);
+        assertEq(alice.balance, ethBefore + 0.1 ether);
         assertEq(eqtyToken.balanceOf(alice), eqtyBefore - REDEEM_AMOUNT);
         assertEq(redeemContract.pendingFoundationEth(), 0);
-        assertEq(redeemContract.pendingFoundationEqty(), 0);
 
         vm.stopPrank();
     }
@@ -108,23 +105,25 @@ contract RedeemTest is Test {
 
         uint256 ethBefore = alice.balance;
 
-        redeemContract.redeem(INITIAL_RATE);
+        redeemContract.redeem(0.1 ether);
 
-        assertEq(alice.balance, ethBefore + INITIAL_RATE);
+        assertEq(alice.balance, ethBefore + 0.1 ether);
         vm.stopPrank();
     }
 
-    function test_redeem_withUnexpectedEthOut_reverts() public {
+    function test_redeem_revertsWhenRequestedAmountPlusFeeExceedsAvailable() public {
+        redeemContract.setFoundationEthFee(3333);
+
         vm.startPrank(alice);
         eqtyToken.approve(address(redeemContract), REDEEM_AMOUNT);
 
-        vm.expectRevert(Redeem.UnexpectedEthOut.selector);
-        redeemContract.redeem(0.9 ether);
+        vm.expectRevert(Redeem.InsufficientETH.selector);
+        redeemContract.redeem(8 ether);
 
         vm.stopPrank();
     }
 
-    function test_redeem_revertsWhenRateNotSet() public {
+    function test_redeem_withoutRateSet_usesRequestedAmount() public {
         // Deploy new contract without setting rate
         Redeem freshContract = new Redeem(address(eqtyToken), foundation);
         vm.deal(address(freshContract), 10 ether);
@@ -132,8 +131,10 @@ contract RedeemTest is Test {
         vm.startPrank(alice);
         eqtyToken.approve(address(freshContract), REDEEM_AMOUNT);
 
-        vm.expectRevert(Redeem.RateNotSet.selector);
-        freshContract.redeem(INITIAL_RATE);
+        uint256 ethBefore = alice.balance;
+        freshContract.redeem(0.1 ether);
+        assertEq(alice.balance, ethBefore + 0.1 ether);
+        assertEq(freshContract.currentRate(), 0.1 ether);
 
         vm.stopPrank();
     }
@@ -150,7 +151,7 @@ contract RedeemTest is Test {
 
         uint256 rateBefore = redeemContract.currentRate();
 
-        redeemContract.redeem(1 ether);
+        redeemContract.redeem(0.1 ether);
 
         uint256 rateAfter = redeemContract.currentRate();
 
@@ -188,7 +189,7 @@ contract RedeemTest is Test {
             eqtyToken.mint(alice, REDEEM_AMOUNT);
             vm.startPrank(alice);
             eqtyToken.approve(address(redeemContract), REDEEM_AMOUNT);
-            redeemContract.redeem(1 ether);
+            redeemContract.redeem(10 ether);
             vm.stopPrank();
         }
 
@@ -205,57 +206,34 @@ contract RedeemTest is Test {
         eqtyToken.approve(address(redeemContract), REDEEM_AMOUNT);
 
         uint256 ethBefore = alice.balance;
-        uint256 expectedFee = (INITIAL_RATE * 500) / 10_000;
-        uint256 expectedPayout = INITIAL_RATE - expectedFee;
+        uint256 requestedEthOut = 0.95 ether;
+        uint256 expectedFee = 0.0475 ether;
 
-        redeemContract.redeem(expectedPayout);
+        redeemContract.redeem(requestedEthOut);
 
-        assertEq(alice.balance, ethBefore + expectedPayout);
+        assertEq(alice.balance, ethBefore + requestedEthOut);
         assertEq(redeemContract.pendingFoundationEth(), expectedFee);
-        assertEq(redeemContract.pendingFoundationEqty(), 0);
 
         vm.stopPrank();
     }
 
-    // ============ Redeem Tests (With EQTY Fee) ============
-
-    function test_redeem_withEqtyFee() public {
-        redeemContract.setFoundationEqtyFee(1000); // 10%
-
-        vm.startPrank(alice);
-        eqtyToken.approve(address(redeemContract), REDEEM_AMOUNT);
-
-        uint256 eqtyBefore = eqtyToken.balanceOf(alice);
-        uint256 expectedEqtyFee = (uint256(REDEEM_AMOUNT) * 1000) / 10_000;
-
-        redeemContract.redeem(INITIAL_RATE);
-
-        assertEq(eqtyToken.balanceOf(alice), eqtyBefore - REDEEM_AMOUNT);
-        assertEq(redeemContract.pendingFoundationEqty(), expectedEqtyFee);
-        assertEq(eqtyToken.balanceOf(address(redeemContract)), expectedEqtyFee);
-
-        vm.stopPrank();
-    }
-
-    // ============ Redeem Tests (With Both Fees) ============
-
-    function test_redeem_withBothFees() public {
+    function test_redeem_burnsAllEqtyEvenWithFoundationEthFee() public {
         redeemContract.setFoundationEthFee(500);
-        redeemContract.setFoundationEqtyFee(1000);
 
         vm.startPrank(alice);
         eqtyToken.approve(address(redeemContract), REDEEM_AMOUNT);
 
         uint256 ethBefore = alice.balance;
+        uint256 eqtyBefore = eqtyToken.balanceOf(alice);
 
-        uint256 expectedEthFee = (INITIAL_RATE * 500) / 10_000;
-        uint256 expectedEqtyFee = (uint256(REDEEM_AMOUNT) * 1000) / 10_000;
+        uint256 requestedEthOut = 0.95 ether;
+        uint256 expectedEthFee = 0.0475 ether;
 
-        redeemContract.redeem(INITIAL_RATE - expectedEthFee);
+        redeemContract.redeem(requestedEthOut);
 
-        assertEq(alice.balance, ethBefore + INITIAL_RATE - expectedEthFee);
+        assertEq(alice.balance, ethBefore + requestedEthOut);
+        assertEq(eqtyToken.balanceOf(alice), eqtyBefore - REDEEM_AMOUNT);
         assertEq(redeemContract.pendingFoundationEth(), expectedEthFee);
-        assertEq(redeemContract.pendingFoundationEqty(), expectedEqtyFee);
 
         vm.stopPrank();
     }
@@ -264,7 +242,6 @@ contract RedeemTest is Test {
 
     function test_redeem_with100PercentFees() public {
         redeemContract.setFoundationEthFee(10_000);
-        redeemContract.setFoundationEqtyFee(10_000);
 
         vm.startPrank(alice);
         eqtyToken.approve(address(redeemContract), REDEEM_AMOUNT);
@@ -274,8 +251,8 @@ contract RedeemTest is Test {
         redeemContract.redeem(0);
 
         assertEq(alice.balance, ethBefore);
-        assertEq(redeemContract.pendingFoundationEth(), INITIAL_RATE);
-        assertEq(redeemContract.pendingFoundationEqty(), REDEEM_AMOUNT);
+        assertEq(redeemContract.pendingFoundationEth(), 0);
+        assertEq(eqtyToken.balanceOf(alice), uint256(REDEEM_AMOUNT) * 9);
 
         vm.stopPrank();
     }
@@ -284,27 +261,26 @@ contract RedeemTest is Test {
 
     function test_redeem_revertsWithNoETH() public {
         Redeem emptyContract = new Redeem(address(eqtyToken), foundation);
-        emptyContract.setCurrentRate(INITIAL_RATE);
 
         vm.startPrank(alice);
         eqtyToken.approve(address(emptyContract), REDEEM_AMOUNT);
 
         vm.expectRevert(Redeem.InsufficientETH.selector);
-        emptyContract.redeem(INITIAL_RATE);
+        emptyContract.redeem(0.1 ether);
         vm.stopPrank();
     }
 
     function test_redeem_revertsWithoutApproval() public {
         vm.prank(alice);
         vm.expectRevert(Redeem.InsufficientEQTYAllowance.selector);
-        redeemContract.redeem(INITIAL_RATE);
+        redeemContract.redeem(0.1 ether);
     }
 
     function test_redeem_revertsWithInsufficientBalance() public {
         vm.startPrank(bob);
         eqtyToken.approve(address(redeemContract), REDEEM_AMOUNT);
         vm.expectRevert(Redeem.InsufficientEQTYBalance.selector);
-        redeemContract.redeem(INITIAL_RATE);
+        redeemContract.redeem(0.1 ether);
         vm.stopPrank();
     }
 
@@ -351,21 +327,6 @@ contract RedeemTest is Test {
         redeemContract.setFoundationEthFee(10_001);
     }
 
-    function test_setFoundationEqtyFee_success() public {
-        redeemContract.setFoundationEqtyFee(500);
-        assertEq(redeemContract.foundationEqtyFeeBps(), 500);
-    }
-
-    function test_setFoundationEqtyFee_allowsMax() public {
-        redeemContract.setFoundationEqtyFee(10_000);
-        assertEq(redeemContract.foundationEqtyFeeBps(), 10_000);
-    }
-
-    function test_setFoundationEqtyFee_revertsIfTooHigh() public {
-        vm.expectRevert(Redeem.FeeTooHigh.selector);
-        redeemContract.setFoundationEqtyFee(10_001);
-    }
-
     function test_setFoundationWallet_success() public {
         address newWallet = makeAddr("newFoundation");
         redeemContract.setFoundationWallet(newWallet);
@@ -395,8 +356,7 @@ contract RedeemTest is Test {
 
         vm.startPrank(alice);
         eqtyToken.approve(address(redeemContract), REDEEM_AMOUNT);
-        uint256 expectedFee = (INITIAL_RATE * 500) / 10_000;
-        redeemContract.redeem(INITIAL_RATE - expectedFee);
+        redeemContract.redeem(0.95 ether);
         vm.stopPrank();
 
         uint256 fees = redeemContract.pendingFoundationEth();
@@ -408,31 +368,9 @@ contract RedeemTest is Test {
         assertEq(redeemContract.pendingFoundationEth(), 0);
     }
 
-    function test_withdrawFoundationEqty_success() public {
-        redeemContract.setFoundationEqtyFee(1000);
-
-        vm.startPrank(alice);
-        eqtyToken.approve(address(redeemContract), REDEEM_AMOUNT);
-        redeemContract.redeem(INITIAL_RATE);
-        vm.stopPrank();
-
-        uint256 fees = redeemContract.pendingFoundationEqty();
-        uint256 foundationEqtyBefore = eqtyToken.balanceOf(foundation);
-
-        redeemContract.withdrawFoundationEqty();
-
-        assertEq(eqtyToken.balanceOf(foundation), foundationEqtyBefore + fees);
-        assertEq(redeemContract.pendingFoundationEqty(), 0);
-    }
-
     function test_withdrawFoundationEth_revertsIfNoFees() public {
         vm.expectRevert(Redeem.NoFeesToWithdraw.selector);
         redeemContract.withdrawFoundationEth();
-    }
-
-    function test_withdrawFoundationEqty_revertsIfNoFees() public {
-        vm.expectRevert(Redeem.NoFeesToWithdraw.selector);
-        redeemContract.withdrawFoundationEqty();
     }
 
     // ============ View Tests ============
@@ -446,11 +384,10 @@ contract RedeemTest is Test {
 
         vm.startPrank(alice);
         eqtyToken.approve(address(redeemContract), REDEEM_AMOUNT);
-        uint256 expectedFee = (INITIAL_RATE * 500) / 10_000;
-        redeemContract.redeem(INITIAL_RATE - expectedFee);
+        redeemContract.redeem(0.95 ether);
         vm.stopPrank();
 
-        // Available should be reduced by rate payout
+        // Available should be reduced by the requested payout plus fee
         assertTrue(redeemContract.availableEth() < initialAvailable);
         assertTrue(redeemContract.pendingFoundationEth() > 0);
     }
@@ -458,7 +395,7 @@ contract RedeemTest is Test {
     function test_previewRedeem_returnsCorrectValues() public view {
         (uint256 ethOut, uint256 ethFee) = redeemContract.previewRedeem();
 
-        assertEq(ethOut, INITIAL_RATE);
+        assertEq(ethOut, 10 ether);
         assertEq(ethFee, 0);
     }
 
@@ -467,8 +404,10 @@ contract RedeemTest is Test {
 
         (uint256 ethOut, uint256 ethFee) = redeemContract.previewRedeem();
 
-        uint256 expectedFee = (INITIAL_RATE * 500) / 10_000;
+        uint256 balance = 10 ether;
+        uint256 expectedEthOut = (balance * 10_000) / 10_500;
+        uint256 expectedFee = (expectedEthOut * 500) / 10_000;
         assertEq(ethFee, expectedFee);
-        assertEq(ethOut, INITIAL_RATE - expectedFee);
+        assertEq(ethOut, expectedEthOut);
     }
 }

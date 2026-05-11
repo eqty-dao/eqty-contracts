@@ -127,15 +127,19 @@ cp .env.example .env
 1. Deploy contracts in order:
 
 ```bash
-# 1. Deploy EQTY token (if not already deployed)
+# 1. Optional: deploy EQTY token separately
 forge script script/DeployEQTY.s.sol --rpc-url base-sepolia --broadcast --verify
 
-# 2. Deploy Redeem (needs EQTY address)
+# 2. Deploy Redeem
+# - reuses EQTY_TOKEN_ADDRESS when set
+# - otherwise deploys EQTY first on Base Sepolia using BRIDGE_WALLET
 forge script script/DeployRedeem.s.sol --rpc-url base-sepolia --broadcast --verify
 
 # 3. Deploy Anchor (needs EQTY and Redeem addresses)
 forge script script/DeployAnchor.s.sol --rpc-url base-sepolia --broadcast --verify
 ```
+
+On Base Sepolia, `DeployRedeem` will deploy a new EQTY token when `EQTY_TOKEN_ADDRESS` is unset. If you already have a testnet EQTY deployment, set `EQTY_TOKEN_ADDRESS` and the script will reuse it instead.
 
 1. Post-deployment configuration:
 
@@ -209,7 +213,6 @@ All contracts use `Ownable2Step` for secure ownership transfer to DAO.
 | **Redeem** | `maxRateChangeBps` | Max rate change per redeem | 1000 (10%) |
 | **Redeem** | `minRate` / `maxRate` | Safety bounds | 0 / max |
 | **Redeem** | `foundationEthFeeBps` | Foundation ETH fee | 0 |
-| **Redeem** | `foundationEqtyFeeBps` | Foundation EQTY fee | 0 |
 | **Redeem** | `redeemAmount` | EQTY required per redeem | 10,000 |
 
 ## Design Philosophy
@@ -231,14 +234,14 @@ BASE_MAINNET_RPC_URL=   # Base mainnet RPC
 BASE_SEPOLIA_RPC_URL=   # Base Sepolia RPC
 BASESCAN_API_KEY=       # For contract verification
 
-# Contract addresses (after deployment)
-EQTY_TOKEN_ADDRESS=
+# Existing deployments / overrides
+EQTY_TOKEN_ADDRESS=     # Optional: reuse an existing EQTY token
 REDEEM_CONTRACT_ADDRESS=
 
 # Configuration
-BRIDGE_WALLET=          # For EQTY minting
-FOUNDATION_WALLET=      # For fee collection
+BRIDGE_WALLET=          # Required if DeployRedeem should deploy EQTY on testnet
 INITIAL_RATE=           # Optional: Override default rate
+MINT_DEADLINE=          # Optional: EQTY mint deadline when deployed from DeployRedeem
 ```
 
 ## Gas Optimization
