@@ -147,8 +147,8 @@ This keeps Anchor simple and lets each subject implementation define its own tru
 |----------|---------|
 | `anchor(Anchor[] calldata)` | Emit one or more generic anchor events |
 | `emitPublicEvent(bytes32, string, bytes)` | Emit one canonical public event |
-| `getEthFee()` | Read current ETH fee per item |
-| `previewEthCost(uint256)` | Read ETH cost for a batch size |
+| `quoteEqtyCost(uint256)` | Read EQTY cost for a batch size |
+| `quoteEthCost(uint256)` | Read ETH cost for a batch size |
 | `setEqtyFee(uint256)` | Set EQTY fee per item |
 | `setEqtyToken(address)` | Set EQTY token contract |
 | `setRedeemContract(address)` | Set Redeem contract for ETH forwarding |
@@ -171,4 +171,5 @@ This keeps Anchor simple and lets each subject implementation define its own tru
 | [Redeem.md](./Redeem.md) | Receives ETH payments from Anchor |
 | [src/Anchor.sol](./src/Anchor.sol) | Contract implementation |
 | [src/interfaces/IAnchor.sol](./src/interfaces/IAnchor.sol) | Generic anchoring interface |
+| [src/interfaces/IAnchorFees.sol](./src/interfaces/IAnchorFees.sol) | Fee quoting interface |
 | [src/interfaces/IPublicEvent.sol](./src/interfaces/IPublicEvent.sol) | Canonical public-event interface |

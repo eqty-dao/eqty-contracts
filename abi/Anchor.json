@@ -100,19 +100,6 @@
   },
   {
     "type": "function",
-    "name": "getEthFee",
-    "inputs": [],
-    "outputs": [
-      {
-        "name": "",
-        "type": "uint256",
-        "internalType": "uint256"
-      }
-    ],
-    "stateMutability": "view"
-  },
-  {
-    "type": "function",
     "name": "owner",
     "inputs": [],
     "outputs": [
@@ -139,10 +126,29 @@
   },
   {
     "type": "function",
-    "name": "previewEthCost",
+    "name": "quoteEqtyCost",
     "inputs": [
       {
-        "name": "numAnchors",
+        "name": "count",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "quoteEthCost",
+    "inputs": [
+      {
+        "name": "count",
         "type": "uint256",
         "internalType": "uint256"
       }

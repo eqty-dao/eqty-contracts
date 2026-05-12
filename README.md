@@ -31,6 +31,7 @@ Anchor can emit canonical `PublicEvent` logs for subject-specific integrations.
 
 The interfaces are split:
 - `IAnchor` for generic anchoring only
+- `IAnchorFees` for anchor fee quotes
 - `IPublicEvent` for canonical public event emission
 
 `emitPublicEvent` can be used in two ways:
@@ -166,6 +167,7 @@ eqty-contracts/
 │   ├── Redeem.sol          # Dynamic rate redemption
 │   └── interfaces/
 │       ├── IAnchor.sol     # Anchor interface
+│       ├── IAnchorFees.sol # Fee quoting interface
 │       ├── IPublicEvent.sol # Public-event interface
 │       └── IRedeem.sol     # Redeem interface
 ├── test/                   # Foundry tests
@@ -199,7 +201,7 @@ eqty-contracts/
 |----------|---------|
 | EQTY Token | `0x24159513a74ca294f5367764557438d318eb7ffe` |
 | Redeem | `0xbc138a25147b1cf798f1e04a9c20e5e37615ef92` |
-| Anchor | `0x53c2bb8af1c082774b6615abbc969c627344d76d` |
+| Anchor | `0xe518BB784B8cB17e6F16e445A9275A16d61700b5` |
 
 ## DAO Configuration
 

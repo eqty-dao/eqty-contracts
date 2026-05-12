@@ -2,6 +2,7 @@
 pragma solidity ^0.8.28;
 
 import "./interfaces/IAnchor.sol";
+import "./interfaces/IAnchorFees.sol";
 import "./interfaces/IPublicEvent.sol";
 import "./interfaces/IRedeem.sol";
 import "@openzeppelin/contracts/access/Ownable2Step.sol";
@@ -27,7 +28,7 @@ interface IEQTY is IERC20 {
  *
  * @custom:security-contact security@eqty.network
  */
-contract Anchor is IAnchor, IPublicEvent, Ownable2Step {
+contract Anchor is IAnchor, IAnchorFees, IPublicEvent, Ownable2Step {
     /// @notice The EQTY token used for fee payments
     IEQTY public eqtyToken;
 
@@ -122,22 +123,22 @@ contract Anchor is IAnchor, IPublicEvent, Ownable2Step {
     }
 
     /**
-     * @notice Get the current ETH fee per anchor based on the EQTY fee quote from Redeem
-     * @return ETH amount required per anchor
+     * @notice Quote the total EQTY cost for billable items
+     * @param count Number of billable items
+     * @return Total EQTY required
      */
-    function getEthFee() external view returns (uint256) {
-        if (address(redeemContract) == address(0)) return 0;
-        return redeemContract.quoteAnchorFee(eqtyFee);
+    function quoteEqtyCost(uint256 count) external view returns (uint256) {
+        return eqtyFee * count;
     }
 
     /**
-     * @notice Preview total ETH cost for a batch of anchors
-     * @param numAnchors Number of anchors to submit
+     * @notice Quote the total ETH cost for billable items
+     * @param count Number of billable items
      * @return Total ETH required
      */
-    function previewEthCost(uint256 numAnchors) external view returns (uint256) {
+    function quoteEthCost(uint256 count) external view returns (uint256) {
         if (address(redeemContract) == address(0)) return 0;
-        return redeemContract.quoteAnchorFee(eqtyFee * numAnchors);
+        return redeemContract.quoteAnchorFee(eqtyFee * count);
     }
 
     // ============ Internal Functions ============

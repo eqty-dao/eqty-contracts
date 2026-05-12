@@ -351,8 +351,9 @@ contract AnchorTest is Test {
         anchorContract.setRedeemContract(makeAddr("redeem"));
     }
 
-    function test_getEthFee_returnsZeroWithoutRedeemContract() public view {
-        assertEq(anchorContract.getEthFee(), 0);
+    function test_quoteEqtyCost_returnsZeroWithoutConfiguredFee() public {
+        Anchor freshAnchor = new Anchor();
+        assertEq(freshAnchor.quoteEqtyCost(5), 0);
     }
 
     function test_anchor_withETH_revertsWithoutRedeemContract() public {
@@ -368,8 +369,8 @@ contract AnchorTest is Test {
         vm.stopPrank();
     }
 
-    function test_previewEthCost_returnsZeroWithoutRedeemContract() public view {
-        assertEq(anchorContract.previewEthCost(5), 0);
+    function test_quoteEthCost_returnsZeroWithoutRedeemContract() public view {
+        assertEq(anchorContract.quoteEthCost(5), 0);
     }
 }
 
@@ -498,14 +499,16 @@ contract AnchorETHPaymentTest is Test {
         vm.stopPrank();
     }
 
-    function test_getEthFee_returnsRateFromRedeem() public view {
-        assertEq(anchorContract.getEthFee(), ETH_FEE);
+    function test_quoteEqtyCost_calculatesCorrectly() public view {
+        assertEq(anchorContract.quoteEqtyCost(1), EQTY_FEE);
+        assertEq(anchorContract.quoteEqtyCost(5), EQTY_FEE * 5);
+        assertEq(anchorContract.quoteEqtyCost(100), EQTY_FEE * 100);
     }
 
-    function test_previewEthCost_calculatesCorrectly() public view {
-        assertEq(anchorContract.previewEthCost(1), ETH_FEE);
-        assertEq(anchorContract.previewEthCost(5), ETH_FEE * 5);
-        assertEq(anchorContract.previewEthCost(100), ETH_FEE * 100);
+    function test_quoteEthCost_calculatesCorrectly() public view {
+        assertEq(anchorContract.quoteEthCost(1), ETH_FEE);
+        assertEq(anchorContract.quoteEthCost(5), ETH_FEE * 5);
+        assertEq(anchorContract.quoteEthCost(100), ETH_FEE * 100);
     }
 
     function test_anchor_withEQTY_stillWorks() public {
