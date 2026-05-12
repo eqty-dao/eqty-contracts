@@ -170,4 +170,5 @@ This keeps Anchor simple and lets each subject implementation define its own tru
 |----------|--------------|
 | [Redeem.md](./Redeem.md) | Receives ETH payments from Anchor |
 | [src/Anchor.sol](./src/Anchor.sol) | Contract implementation |
-| [src/interfaces/IAnchor.sol](./src/interfaces/IAnchor.sol) | Interface for integrations |
+| [src/interfaces/IAnchor.sol](./src/interfaces/IAnchor.sol) | Generic anchoring interface |
+| [src/interfaces/IPublicEvent.sol](./src/interfaces/IPublicEvent.sol) | Canonical public-event interface |

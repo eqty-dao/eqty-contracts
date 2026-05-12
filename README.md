@@ -29,6 +29,10 @@ Detailed contract docs:
 
 Anchor can emit canonical `PublicEvent` logs for subject-specific integrations.
 
+The interfaces are split:
+- `IAnchor` for generic anchoring only
+- `IPublicEvent` for canonical public event emission
+
 `emitPublicEvent` can be used in two ways:
 - an external contract can call Anchor as part of its own flow
 - an Ownable owner can call Anchor directly
@@ -155,12 +159,14 @@ anchorContract.setEqtyFee(10 ether); // 10 EQTY per anchor
 eqty-contracts/
 ├── Anchor.md               # Detailed Anchor docs
 ├── Redeem.md               # Detailed Redeem docs
+├── abi/                    # Curated ABI exports
 ├── src/                    # Contract source files
 │   ├── Anchor.sol          # Anchoring with ETH/EQTY payment
 │   ├── EQTY.sol            # ERC20 token
 │   ├── Redeem.sol          # Dynamic rate redemption
 │   └── interfaces/
 │       ├── IAnchor.sol     # Anchor interface
+│       ├── IPublicEvent.sol # Public-event interface
 │       └── IRedeem.sol     # Redeem interface
 ├── test/                   # Foundry tests
 │   ├── Anchor.t.sol

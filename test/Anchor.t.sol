@@ -4,6 +4,7 @@ pragma solidity ^0.8.28;
 import {Test} from "forge-std/Test.sol";
 import {Anchor} from "../src/Anchor.sol";
 import {IAnchor} from "../src/interfaces/IAnchor.sol";
+import {IPublicEvent} from "../src/interfaces/IPublicEvent.sol";
 import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 
 /**
@@ -181,7 +182,7 @@ contract AnchorTest is Test {
         bytes memory data = abi.encode(uint256(1), alice);
 
         vm.expectEmit(true, true, false, true);
-        emit IAnchor.PublicEvent(subjectId, alice, eventType, data, uint64(block.timestamp));
+        emit IPublicEvent.PublicEvent(subjectId, alice, eventType, data, uint64(block.timestamp));
 
         anchorContract.emitPublicEvent(subjectId, eventType, data);
         vm.stopPrank();

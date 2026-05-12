@@ -2,6 +2,7 @@
 pragma solidity ^0.8.28;
 
 import "./interfaces/IAnchor.sol";
+import "./interfaces/IPublicEvent.sol";
 import "./interfaces/IRedeem.sol";
 import "@openzeppelin/contracts/access/Ownable2Step.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
@@ -26,7 +27,7 @@ interface IEQTY is IERC20 {
  *
  * @custom:security-contact security@eqty.network
  */
-contract Anchor is IAnchor, Ownable2Step {
+contract Anchor is IAnchor, IPublicEvent, Ownable2Step {
     /// @notice The EQTY token used for fee payments
     IEQTY public eqtyToken;
 

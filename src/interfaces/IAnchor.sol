@@ -3,8 +3,8 @@ pragma solidity ^0.8.28;
 
 /**
  * @title IAnchor
- * @notice Interface for the Anchor contract that records event chain hashes on Base
- * @dev Stateless contract that only emits events for off-chain indexing
+ * @notice Interface for generic anchoring on Base
+ * @dev Stateless contract that only emits anchor events for off-chain indexing
  */
 interface IAnchor {
     /**
@@ -27,35 +27,10 @@ interface IAnchor {
     event Anchored(bytes32 indexed key, bytes32 value, address indexed sender, uint64 timestamp);
 
     /**
-     * @notice Emitted when a canonical public event is recorded for a subject
-     * @param subjectId The subject identifier the event belongs to
-     * @param source The caller that emitted the public event
-     * @param eventType The human-readable application-defined event type
-     * @param data Opaque event payload
-     * @param timestamp The block timestamp when the event was emitted
-     */
-    event PublicEvent(
-        bytes32 indexed subjectId,
-        address indexed source,
-        string eventType,
-        bytes data,
-        uint64 timestamp
-    );
-
-    /**
      * @notice Submit one or more anchors to be recorded on-chain
      * @param anchors Array of Anchor structs to record
      * @dev Emits an Anchored event for each anchor in the array.
      *      Payment can be ETH (msg.value) or EQTY (burned from caller).
      */
     function anchor(Anchor[] calldata anchors) external payable;
-
-    /**
-     * @notice Emit a canonical public event for a subject
-     * @param subjectId The subject identifier the event belongs to
-     * @param eventType The human-readable application-defined event type
-     * @param data Opaque event payload
-     * @dev Payment can be ETH (msg.value) or EQTY (burned from caller).
-     */
-    function emitPublicEvent(bytes32 subjectId, string calldata eventType, bytes calldata data) external payable;
 }
