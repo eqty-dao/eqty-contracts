@@ -16,6 +16,7 @@ dist/
 cache/
 artifacts/
 typechain-types/
+broadcast/
 
 # Foundry files
 out/
@@ -61,9 +62,6 @@ lerna-debug.log*
 
 # Yarn Integrity file
 .yarn-integrity
-
-# ABI files are generated
-abi/
 
 # Deployments are environment specific
 # deployments/ - keeping this tracked for reference
