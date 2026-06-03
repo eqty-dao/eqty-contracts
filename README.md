@@ -272,6 +272,10 @@ All contracts are optimized for gas efficiency on Base L2:
 ## License
 
 MIT
+
 ## Security
 
 For security concerns, please contact: security@eqty.network
+
+Audited by Hacken. [See report](./Hacken_LTO_Network_SCA_EQTY_Token_Sep2025_P_2025_1861_1_20251001.pdf)
+
