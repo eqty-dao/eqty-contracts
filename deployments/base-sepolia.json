@@ -1,10 +1,8 @@
 {
   "anchor": {
-    "address": "0x7607af0cea78815c71bbea90110b2c218879354b",
-    "deploymentHash": "0xc3aa55cf7d0fabd9735181e6f283b20e230f9887e0c3dbadeb311759e6ea2028",
-    "deployedAt": "2025-08-04T13:49:05.930Z",
-    "anchorFee": "0",
-    "eqtyToken": "0x0000000000000000000000000000000000000000",
-    "blockNumber": "29273529"
+    "address": "0xe518BB784B8cB17e6F16e445A9275A16d61700b5",
+    "anchorFee": "10000000000000000000",
+    "eqtyToken": "0x24159513a74ca294f5367764557438d318eb7ffe",
+    "redeemContract": "0xbc138a25147b1cf798f1e04a9c20e5e37615ef92"
   }
 }
